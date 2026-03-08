@@ -119,6 +119,22 @@ This converts informal roadmaps into executable Hive plans.
 8. Revise based on feedback
 9. Save the approved plan to `docs/plans/YYYY-MM-DD-<feature>.md`
 
+## When NOT to Use Hive
+
+Hive adds setup overhead (worktree creation, merge, cleanup) per batch. For small or
+ambiguous tasks, this overhead exceeds the benefit. Use the main session directly when:
+
+| Scenario | Why Hive doesn't help |
+|----------|----------------------|
+| Task < 5 minutes | Worktree setup + merge takes longer than the task itself |
+| Debugging with unknown root cause | Worker reads files randomly; you need interactive exploration |
+| Task touches 3+ deeply interdependent files | Worker likely exhausts turns on context loading; use Opus directly in main session |
+| Single-file change | No parallelism benefit; use Edit directly |
+| Exploratory spike / proof of concept | Scope undefined; Hive plan would be wrong before first worker finishes |
+
+**Rule of thumb:** if you're not sure what files need to change, don't dispatch workers yet.
+Use the main session to investigate, then write a Hive plan once the scope is clear.
+
 ## Hard Gates
 
 - **Every task must have a model tag.** No untagged tasks.

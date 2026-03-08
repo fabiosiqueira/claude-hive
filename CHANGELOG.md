@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.9] - 2026-03-08
+
+### Added
+- `skills/model-routing/SKILL.md`: nova seção "Context Depth Signals" — detecta tarefas que exigem leitura de 3+ módulos interdependentes antes de qualquer implementação; regra: deep-context + Sonnet → upgrade para Opus ou split read/write
+- `skills/model-routing/SKILL.md`: Opus Tasks agora inclui explicitamente "context loading across 3+ interdependent modules"
+- `skills/model-routing/SKILL.md`: Key Principles agora inclui "Deep context = Opus or split"
+- `skills/writing-plans/SKILL.md`: nova seção "When NOT to Use Hive" — documenta anti-padrões (task < 5min, debug com causa raiz desconhecida, single-file change, spike exploratório)
+
 ## [1.0.8] - 2026-03-08
 
 ### Fixed

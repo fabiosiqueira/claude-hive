@@ -71,6 +71,7 @@ Assign to Opus when the task requires architectural judgment or deep analysis:
 - Performance optimization requiring profiling analysis
 - Migration strategies across breaking changes
 - Integration workers that connect multiple independently-built modules
+- Tasks requiring context loading across 3+ interdependent modules before implementation
 
 ## Escalation Policy
 
@@ -93,6 +94,29 @@ Step 3: If Opus fails -> mark task BLOCKED
 ```
 
 Do not skip tiers. The escalation must be sequential to keep costs controlled.
+
+## Context Depth Signals
+
+Some tasks require reading 3+ interconnected modules before any implementation can begin.
+This "context loading phase" consumes turns disproportionately — a Sonnet worker may exhaust
+its turn limit just reading dependencies (A → B → C) without writing a single line.
+
+**Detect deep-context tasks during planning by these markers:**
+- Task description mentions 3+ modules that interact with each other
+- Task involves debugging with unclear root cause across files
+- Task requires understanding how an existing system works before changing it
+- Files listed span 3+ layers (e.g., agent → logic → engine → tests)
+
+**Rule: if a task is deep-context AND assigned to Sonnet → upgrade to Opus.**
+
+Opus handles context accumulation better and is less likely to stall on reads.
+Also raise `--max-turns` to 200 for these tasks.
+
+**Alternative: split into two tasks:**
+1. `[Haiku]` `[simple]` "Read and summarize the interaction between A, B, C" → writes a summary file
+2. `[Sonnet]` `[moderate]` "Implement fix using summary in task N" → reads summary, implements
+
+This splits context loading from implementation, letting each worker stay within bounds.
 
 ## Budget Estimation
 
@@ -139,3 +163,4 @@ Use `hive_get_batch_max_model()` from `lib/plan-parser.sh` to determine this aut
 - **Turn limit is a hard constraint.** Set `--max-turns` on every worker. No unbounded runs.
 - **Complexity tags drive routing.** The `[simple]`, `[moderate]`, `[complex]` tags in the plan map directly to model tiers.
 - **Integration workers match the batch ceiling.** They need at least as much capability as the hardest task they are connecting.
+- **Deep context = Opus or split.** Tasks that read 3+ interconnected modules before writing anything must use Opus or be split into a read task + write task.
