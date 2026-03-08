@@ -212,6 +212,32 @@ tmux send-keys -t "hive-20260308-162032:task-6" ...
 tmux send-keys -t "hive-20260308-162032:=task-6" ...
 ```
 
+### 3. Nunca gere scripts de worker manualmente
+
+`--budget-tokens` **NÃO É uma flag válida** do claude CLI. A flag correta é `--max-budget-usd`.
+
+Nunca construa scripts de worker à mão. Sempre use `hive_write_worker_script` — ela gera o script correto, com flags válidas, prompts em arquivos, e path absoluto no `cd`.
+
+```bash
+# Errado — flag inválida, geração manual:
+echo "claude --model sonnet --budget-tokens 10000 -p '$PROMPT'" > script.sh
+
+# Correto — sempre via hive_write_worker_script:
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "claude-sonnet-4-6" "2.00" "$PROMPT" "" ""
+```
+
+### 4. Passe sempre path absoluto para hive_write_worker_script
+
+Passe `$(pwd)/.hive/worktrees/task-N` (absoluto), não `.hive/worktrees/task-N` (relativo). `hive_write_worker_script` resolve caminhos relativos automaticamente desde v1.0.2, mas prefira passar absoluto para evitar ambiguidade.
+
+```bash
+# Preferido — path absoluto explícito:
+hive_write_worker_script "$SCRIPT_PATH" "$(pwd)/.hive/worktrees/task-$N" ...
+
+# Funciona mas menos explícito — path relativo (resolvido automaticamente):
+hive_write_worker_script "$SCRIPT_PATH" ".hive/worktrees/task-$N" ...
+```
+
 ## Key Principles
 
 - **One worker per task, one worktree per worker.** No shared mutable state between workers.

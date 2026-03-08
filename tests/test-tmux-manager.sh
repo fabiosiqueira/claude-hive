@@ -193,6 +193,195 @@ echo "  PASS: wait-for returned after signal"
 ((PASS++))
 
 echo ""
+echo "--- hive_write_worker_script — básico ---"
+TMPSCRIPT=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT" "/tmp" "claude-sonnet-4-6" "2.00" "hello world" "" ""
+
+if [[ -x "$TMPSCRIPT" ]]; then
+  echo "  PASS: script é executável"
+  ((PASS++))
+else
+  echo "  FAIL: script não é executável"
+  ((FAIL++))
+fi
+
+first_line=$(head -1 "$TMPSCRIPT")
+assert_eq "primeira linha é shebang" "#!/usr/bin/env bash" "$first_line"
+
+if grep -q "set -euo pipefail" "$TMPSCRIPT"; then
+  echo "  PASS: script contém set -euo pipefail"
+  ((PASS++))
+else
+  echo "  FAIL: script não contém set -euo pipefail"
+  ((FAIL++))
+fi
+rm -f "$TMPSCRIPT"
+
+echo ""
+echo "--- hive_write_worker_script — path absoluto (regressão Bug 2.2) ---"
+TMPSCRIPT_REL=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_REL" ".hive/worktrees/task-1" "claude-sonnet-4-6" "2.00" "hello" "" ""
+cd_line_rel=$(grep "^cd " "$TMPSCRIPT_REL")
+if [[ "$cd_line_rel" == "cd /"* ]]; then
+  echo "  PASS: path relativo → cd com path absoluto"
+  ((PASS++))
+else
+  echo "  FAIL: path relativo não foi resolvido para absoluto"
+  echo "    actual: $cd_line_rel"
+  ((FAIL++))
+fi
+rm -f "$TMPSCRIPT_REL"
+
+TMPSCRIPT_ABS=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_ABS" "/tmp/worktree-test" "claude-sonnet-4-6" "2.00" "hello" "" ""
+cd_line_abs=$(grep "^cd " "$TMPSCRIPT_ABS")
+if echo "$cd_line_abs" | grep -q "/tmp/worktree-test"; then
+  echo "  PASS: path absoluto preservado intacto"
+  ((PASS++))
+else
+  echo "  FAIL: path absoluto alterado inesperadamente"
+  echo "    actual: $cd_line_abs"
+  ((FAIL++))
+fi
+rm -f "$TMPSCRIPT_ABS"
+
+echo ""
+echo "--- hive_write_worker_script — prompts ---"
+TMPSCRIPT_PROMPT=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_PROMPT" "/tmp" "claude-sonnet-4-6" "2.00" "my task prompt" "my system prompt" ""
+TASK_PROMPT_FILE="${TMPSCRIPT_PROMPT%.sh}.task-prompt.txt"
+SYS_PROMPT_FILE="${TMPSCRIPT_PROMPT%.sh}.system-prompt.txt"
+
+if [[ -f "$TASK_PROMPT_FILE" ]]; then
+  task_content=$(cat "$TASK_PROMPT_FILE")
+  assert_eq "task-prompt.txt contém o prompt correto" "my task prompt" "$task_content"
+else
+  echo "  FAIL: task-prompt.txt não foi criado"
+  ((FAIL++))
+fi
+
+if [[ -f "$SYS_PROMPT_FILE" ]]; then
+  sys_content=$(cat "$SYS_PROMPT_FILE")
+  assert_eq "system-prompt.txt contém o prompt correto" "my system prompt" "$sys_content"
+else
+  echo "  FAIL: system-prompt.txt não foi criado"
+  ((FAIL++))
+fi
+
+if grep -q 'cat ' "$TMPSCRIPT_PROMPT"; then
+  echo "  PASS: script referencia arquivos de prompt com cat"
+  ((PASS++))
+else
+  echo "  FAIL: script não usa cat para ler arquivos de prompt"
+  ((FAIL++))
+fi
+rm -f "$TMPSCRIPT_PROMPT" "$TASK_PROMPT_FILE" "$SYS_PROMPT_FILE"
+
+echo ""
+echo "--- hive_write_worker_script — flags do claude (regressão Bug 2.1) ---"
+TMPSCRIPT_FLAGS=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_FLAGS" "/tmp" "claude-sonnet-4-6" "3.00" "do stuff" "" ""
+
+if grep -q "\-\-model" "$TMPSCRIPT_FLAGS"; then
+  echo "  PASS: script contém --model"
+  ((PASS++))
+else
+  echo "  FAIL: script não contém --model"
+  ((FAIL++))
+fi
+
+if grep -q "\-\-dangerously-skip-permissions" "$TMPSCRIPT_FLAGS"; then
+  echo "  PASS: script contém --dangerously-skip-permissions"
+  ((PASS++))
+else
+  echo "  FAIL: script não contém --dangerously-skip-permissions"
+  ((FAIL++))
+fi
+
+if grep -q "\-\-max-budget-usd" "$TMPSCRIPT_FLAGS"; then
+  echo "  PASS: script contém --max-budget-usd"
+  ((PASS++))
+else
+  echo "  FAIL: script não contém --max-budget-usd"
+  ((FAIL++))
+fi
+
+if grep -q "\-\-budget-tokens" "$TMPSCRIPT_FLAGS"; then
+  echo "  FAIL: script contém --budget-tokens (flag inválida!)"
+  ((FAIL++))
+else
+  echo "  PASS: script NÃO contém --budget-tokens"
+  ((PASS++))
+fi
+rm -f "$TMPSCRIPT_FLAGS"
+
+echo ""
+echo "--- hive_write_worker_script — signal channel ---"
+TMPSCRIPT_SIG=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_SIG" "/tmp" "claude-haiku-4-5" "" "task" "" "hive-abc-task-1-done"
+if grep -q "tmux wait-for -S" "$TMPSCRIPT_SIG" && grep -q "hive-abc-task-1-done" "$TMPSCRIPT_SIG"; then
+  echo "  PASS: script com signal contém tmux wait-for -S <channel>"
+  ((PASS++))
+else
+  echo "  FAIL: script com signal não contém wait-for correto"
+  ((FAIL++))
+fi
+rm -f "$TMPSCRIPT_SIG"
+
+TMPSCRIPT_NOSIG=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_NOSIG" "/tmp" "claude-haiku-4-5" "" "task" "" ""
+if grep -q "wait-for" "$TMPSCRIPT_NOSIG"; then
+  echo "  FAIL: script sem signal contém wait-for inesperadamente"
+  ((FAIL++))
+else
+  echo "  PASS: script sem signal não contém wait-for"
+  ((PASS++))
+fi
+rm -f "$TMPSCRIPT_NOSIG"
+
+echo ""
+echo "--- hive_launch_worker_script — execução ---"
+hive_kill_session "$TEST_SESSION"
+hive_create_session "$TEST_SESSION"
+hive_create_worker "$TEST_SESSION" "script-worker" "/tmp"
+TMPSCRIPT_LAUNCH=$(mktemp /tmp/hive-test-XXXXX.sh)
+printf '#!/usr/bin/env bash\necho SCRIPT_LAUNCHED\n' > "$TMPSCRIPT_LAUNCH"
+chmod +x "$TMPSCRIPT_LAUNCH"
+hive_launch_worker_script "$TEST_SESSION" "script-worker" "$TMPSCRIPT_LAUNCH"
+sleep 1
+launched_script_output=$(hive_capture_output "$TEST_SESSION" "script-worker" 10)
+if echo "$launched_script_output" | grep -q "bash "; then
+  echo "  PASS: hive_capture_output captura bash /path/to/script no histórico"
+  ((PASS++))
+else
+  echo "  FAIL: bash script path não encontrado na saída capturada"
+  ((FAIL++))
+fi
+rm -f "$TMPSCRIPT_LAUNCH"
+hive_kill_session "$TEST_SESSION"
+
+echo ""
+echo "--- :=name exact match (regressão Bug #2) — worker com hífens ---"
+SESSION_HIFENADO="hive-20260308-test-$$"
+hive_create_session "$SESSION_HIFENADO"
+hive_create_worker "$SESSION_HIFENADO" "task-worker-1" "/tmp"
+
+captured_hif=$(hive_capture_output "$SESSION_HIFENADO" "task-worker-1" 5 2>&1)
+cap_exit=$?
+if [[ $cap_exit -eq 0 ]]; then
+  echo "  PASS: hive_capture_output funciona com worker hifenado"
+  ((PASS++))
+else
+  echo "  FAIL: hive_capture_output falhou com worker hifenado (exit $cap_exit)"
+  ((FAIL++))
+fi
+
+alive_hif=$(hive_check_worker_alive "$SESSION_HIFENADO" "task-worker-1")
+assert_eq "hive_check_worker_alive retorna true para worker hifenado" "true" "$alive_hif"
+
+hive_kill_session "$SESSION_HIFENADO"
+
+echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 
 if [[ $FAIL -gt 0 ]]; then

@@ -136,10 +136,15 @@ hive_write_worker_script() {
     printf '%s' "$system_prompt" > "$system_prompt_file"
   fi
 
+  local abs_worktree_path="$worktree_path"
+  if [[ "$worktree_path" != /* ]]; then
+    abs_worktree_path="$(pwd)/$worktree_path"
+  fi
+
   {
     printf '#!/usr/bin/env bash\n'
     printf 'set -euo pipefail\n'
-    printf 'cd %q\n\n' "$worktree_path"
+    printf 'cd %q\n\n' "$abs_worktree_path"
 
     if [[ -n "$task_prompt" ]]; then
       printf '_task_prompt=$(cat %q)\n' "$task_prompt_file"
