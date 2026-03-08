@@ -1,93 +1,84 @@
-# VoltAgent-Circle
+# VoltAgent Circle v2
 
+Soft house AI completa dentro do Claude Code. Construída sobre o framework [Superpowers](https://github.com/obra/superpowers) com extensões especializadas para design, validação UX, segurança e deploy.
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Arquitetura
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/fsa-portfolio/voltagent-circle.git
-git branch -M main
-git push -uf origin main
+Superpowers (base)
+├── /brainstorm             → refinar requisitos
+├── /write-plan             → plano granular (tasks de 2-5 min)
+├── /execute-plan           → implementação com subagentes + review
+├── TDD, code review, git worktrees, debugging (skills nativas)
+│
+└── Circle Extensions
+    ├── /design-system      → design tokens, componentes, layouts
+    ├── /validate-ux        → testes reais via Playwright MCP
+    ├── /security-review    → audit OWASP Top 10
+    └── /ship               → versão, changelog, commit, push, PR
 ```
 
-## Integrate with your tools
+## Pipeline completo
 
-* [Set up project integrations](https://gitlab.com/fsa-portfolio/voltagent-circle/-/settings/integrations)
+```bash
+/circle   # executa todas as fases em ordem com quality gates
+```
 
-## Collaborate with your team
+Fases:
+1. **Brainstorm** — refinar requisitos com o usuário
+2. **Planejar** — tasks granulares com paths exatos e código
+3. **Design** — design system + componentes (se UI)
+4. **Implementar** — subagentes com TDD + code review
+5. **Validar UX** — testes reais com Playwright (se UI)
+6. **Security Review** — audit OWASP + verificações automatizadas
+7. **Ship** — versão semver, changelog, push, PR
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Cada fase tem gate objetivo. Falha → volta à fase que falhou.
 
-## Test and Deploy
+## Comandos disponíveis
 
-Use the built-in continuous integration in GitLab.
+| Comando | Descrição |
+|---------|-----------|
+| `/circle` | Pipeline completo |
+| `/brainstorm` | Refinar requisitos (Superpowers) |
+| `/write-plan` | Criar plano de implementação (Superpowers) |
+| `/execute-plan` | Executar plano com subagentes (Superpowers) |
+| `/design-system` | Gerar design system |
+| `/validate-ux` | Validar UX com Playwright |
+| `/security-review` | Audit de segurança |
+| `/ship` | Deploy final |
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## Pré-requisitos
 
-***
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) instalado
+- Plugin [Superpowers](https://github.com/obra/superpowers) instalado (`claude plugins install superpowers`)
+- Playwright MCP configurado (para `/validate-ux`)
 
-# Editing this README
+## Estrutura
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```
+voltagent-circle/
+├── CLAUDE.MD                          # regras e arquitetura do Circle v2
+├── .claude/commands/
+│   ├── circle.md                      # pipeline completo
+│   ├── design-system.md               # extensão: design
+│   ├── validate-ux.md                 # extensão: validação UX
+│   ├── security-review.md             # extensão: segurança
+│   └── ship.md                        # extensão: deploy
+├── docs/
+│   ├── plans/                         # planos gerados pelo /write-plan
+│   ├── design-spec.md                 # spec de design (gerado pelo /design-system)
+│   └── references/                    # referência histórica da v1
+└── README.md
+```
 
-## Suggestions for a good README
+## Diferenças da v1
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| Aspecto | v1 | v2 |
+|---------|----|----|
+| Modelo mental | "Equipe de 8 pessoas" | "Processo com quality gates" |
+| Subagentes | Por papel (Designer, QA...) | Por task (1 subagente/task) |
+| Contexto | Fragmentado (8 handoffs) | Preservado (orquestrador mantém contexto) |
+| Skills | Links para repos GitHub | Arquivos `.md` executáveis |
+| Quality gates | "Confiança < 85%" | Gates objetivos e verificáveis |
+| Roteamento de modelos | Impossível no Claude Code | Tags de complexidade (metadata) |
