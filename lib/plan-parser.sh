@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # lib/plan-parser.sh — Parses Hive plan markdown files into structured task data
 # This file is meant to be sourced, NOT executed directly.
-# Do NOT use set -euo pipefail here.
+# Do NOT use set -euo pipefail here — functions use non-zero returns intentionally
+# and _flush_task relies on parent scope variables (closure pattern).
 
 readonly HIVE_PLAN_DELIMITER="|"
 

@@ -133,7 +133,7 @@ fi
 echo ""
 echo "--- hive_build_claude_command ---"
 cmd=$(hive_build_claude_command "haiku" "" "" "")
-if echo "$cmd" | grep -q "\-\-model haiku"; then
+if echo "$cmd" | grep -q "\-\-model 'haiku'"; then
   echo "  PASS: command includes model flag"
   ((PASS++))
 else
@@ -150,7 +150,7 @@ else
 fi
 
 cmd_with_budget=$(hive_build_claude_command "sonnet" "" "5.00" "do stuff")
-if echo "$cmd_with_budget" | grep -q "\-\-max-budget-usd 5.00"; then
+if echo "$cmd_with_budget" | grep -q "\-\-max-budget-usd '5.00'"; then
   echo "  PASS: command includes budget flag"
   ((PASS++))
 else
@@ -161,7 +161,7 @@ fi
 echo ""
 echo "--- hive_build_claude_command with signal ---"
 cmd_with_signal=$(hive_build_claude_command "sonnet" "" "" "do stuff" "hive-abc-task-1-done")
-if echo "$cmd_with_signal" | grep -q "tmux wait-for -S hive-abc-task-1-done"; then
+if echo "$cmd_with_signal" | grep -q "tmux wait-for -S 'hive-abc-task-1-done'"; then
   echo "  PASS: command includes wait-for signal"
   ((PASS++))
 else

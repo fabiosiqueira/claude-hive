@@ -36,7 +36,7 @@ echo '{"run_id":"'$RUN_ID'","status":"running","current_batch":1}' > .hive/runs/
 source lib/tmux-manager.sh
 
 # Create session for this run
-tmux_create_session "hive-$RUN_ID"
+hive_create_session "hive-$RUN_ID"
 ```
 
 ### Step 3: Execute Batches
@@ -103,9 +103,9 @@ The orchestrator polls result files every 5 seconds:
 source lib/result-collector.sh
 
 # Check if all tasks in current batch are done
-while ! all_tasks_complete "$RUN_ID" "$BATCH_NUM"; do
+while [[ "$(hive_all_tasks_complete "$RUN_DIR" "$TASK_NUMBERS")" != "true" ]]; do
   sleep 5
-  check_for_errors "$RUN_ID" "$BATCH_NUM"
+  hive_get_tasks_by_status "$RUN_DIR" "error"
 done
 ```
 

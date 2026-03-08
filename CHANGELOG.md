@@ -20,7 +20,7 @@
 - **Templates** — worker-prompt, integrator-prompt, plan-header com placeholders `{{VAR}}`
 - **Hooks** — session-start injeta using-hive skill context
 - **Plugin manifest** — `.claude-plugin/plugin.json` para instalação
-- **124+ testes unitários** passando (tmux, worktree, plan-parser, result-collector)
+- **128 testes unitários** passando (tmux, worktree, plan-parser, result-collector)
 - **Event-driven monitoring** — `tmux wait-for` ao invés de polling
 - **Integration workers** — conectam módulos pós-batch
 - **Roadmap ingestion** — consome `docs/roadmap.md` e transforma em plano Hive

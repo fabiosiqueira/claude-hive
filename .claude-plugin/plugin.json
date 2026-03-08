@@ -1,7 +1,7 @@
 {
   "name": "hive",
   "description": "Multi-model orchestration via tmux terminals — route tasks to optimal Claude models running in parallel",
-  "version": "0.1.0",
+  "version": "3.0.0",
   "author": {
     "name": "Fabio Siqueira"
   },

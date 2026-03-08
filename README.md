@@ -57,8 +57,8 @@ Orchestrator (your Claude Code session)
 ## Installation
 
 ```bash
-# TODO: publish to marketplace
-# claude plugins install hive
+cd /path/to/hive
+claude plugins install .
 ```
 
 ## How Workers Communicate

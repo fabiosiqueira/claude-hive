@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Hive tmux-manager.sh — Core tmux operations for worker orchestration
 # Usage: source this file to get hive_* functions
-# This file is meant to be sourced, not executed directly
-# Caller controls set -e behavior
+# This file is meant to be sourced, not executed directly.
+# Do NOT use set -euo pipefail here — functions return non-zero intentionally
+# for status checks, and readonly vars would fail on re-source.
 
 readonly HIVE_TMUX_PREFIX="hive"
 
@@ -103,22 +104,30 @@ hive_build_claude_command() {
   local task_prompt="${4:-}"
   local signal_channel="${5:-}"
 
-  local cmd="claude --model $model --dangerously-skip-permissions"
+  local cmd="claude --model '$model' --dangerously-skip-permissions"
 
   if [[ -n "$system_prompt" ]]; then
-    cmd="$cmd --append-system-prompt '$(echo "$system_prompt" | sed "s/'/'\\\\''/g")'"
+    # Save prompt to temp file — avoids quoting issues with special chars
+    local prompt_file
+    prompt_file=$(mktemp "${TMPDIR:-/tmp}/hive-system-prompt.XXXXXX")
+    printf '%s' "$system_prompt" > "$prompt_file"
+    cmd="$cmd --append-system-prompt \"\$(cat '$prompt_file')\""
   fi
 
   if [[ -n "$max_budget" ]]; then
-    cmd="$cmd --max-budget-usd $max_budget"
+    cmd="$cmd --max-budget-usd '$max_budget'"
   fi
 
   if [[ -n "$task_prompt" ]]; then
-    cmd="$cmd -p '$(echo "$task_prompt" | sed "s/'/'\\\\''/g")'"
+    # Save prompt to temp file — avoids quoting issues with special chars
+    local task_file
+    task_file=$(mktemp "${TMPDIR:-/tmp}/hive-task-prompt.XXXXXX")
+    printf '%s' "$task_prompt" > "$task_file"
+    cmd="$cmd -p \"\$(cat '$task_file')\""
   fi
 
   if [[ -n "$signal_channel" ]]; then
-    cmd="$cmd; tmux wait-for -S $signal_channel"
+    cmd="$cmd; tmux wait-for -S '$signal_channel'"
   fi
 
   echo "$cmd"
@@ -144,10 +153,11 @@ hive_signal_channel() {
 }
 
 # Wait for all workers in a list to complete
-# Args: signal_channels (space-separated)
+# Args: signal_channels (space-separated list, or pass as positional args)
 # Blocks until ALL channels have been signaled
 hive_wait_for_all_workers() {
   local channels="$1"
+  local channel
 
   for channel in $channels; do
     tmux wait-for "$channel"

@@ -47,10 +47,18 @@ hive_worktree_cleanup_run() {
   local repo_path="$1"
   local run_id="$2"
 
-  # Remove all worktrees that match this run
+  # Remove only worktrees belonging to this run (match by branch name)
+  local run_branches
+  run_branches=$(git -C "$repo_path" branch --list "hive/$run_id/*" 2>/dev/null | tr -d ' *')
+
   git -C "$repo_path" worktree list --porcelain | grep "^worktree " | sed 's/^worktree //' | while read -r wt_path; do
     if echo "$wt_path" | grep -q "$HIVE_WORKTREE_DIR"; then
-      git -C "$repo_path" worktree remove --force "$wt_path" 2>/dev/null || true
+      # Only remove if worktree belongs to a branch from this run
+      local wt_branch
+      wt_branch=$(git -C "$repo_path" worktree list --porcelain | grep -A1 "^worktree $wt_path$" | grep "^branch " | sed 's|^branch refs/heads/||')
+      if echo "$run_branches" | grep -qF "$wt_branch" 2>/dev/null; then
+        git -C "$repo_path" worktree remove --force "$wt_path" 2>/dev/null || true
+      fi
     fi
   done
 
@@ -72,6 +80,5 @@ hive_worktree_merge() {
   local task_number="$3"
   local branch_name="hive/$run_id/task-$task_number"
 
-  cd "$repo_path"
-  git merge "$branch_name" --no-edit -m "hive: merge task-$task_number from run $run_id"
+  git -C "$repo_path" merge "$branch_name" --no-edit -m "hive: merge task-$task_number from run $run_id"
 }

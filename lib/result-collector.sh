@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # lib/result-collector.sh — Manages .hive/runs/<run-id>/ directory structure
-# Meant to be sourced, NOT executed directly. Do NOT use set -euo pipefail here.
+# Meant to be sourced, NOT executed directly.
+# Do NOT use set -euo pipefail here — functions return non-zero intentionally for status checks.
 
 # Initialize a run directory with all subdirectories and initial files.
 # Args: base_path, run_id
@@ -60,9 +61,9 @@ hive_check_task_status() {
   local content
   content=$(cat "$result_file")
 
-  if [[ "$content" == *"HIVE_TASK_COMPLETE"* ]]; then
+  if [[ "$content" == *"HIVE_TASK_COMPLETE"* ]] || [[ "$content" == *"HIVE_INTEGRATION_COMPLETE"* ]]; then
     echo "complete"
-  elif [[ "$content" == *"HIVE_TASK_ERROR"* ]]; then
+  elif [[ "$content" == *"HIVE_TASK_ERROR"* ]] || [[ "$content" == *"HIVE_INTEGRATION_ERROR"* ]]; then
     echo "error"
   else
     echo "pending"
@@ -154,12 +155,15 @@ hive_update_run_status() {
   # Extract run_id from current status.json
   local run_id=""
   if [[ -f "$run_dir/status.json" ]]; then
-    local content
-    content=$(cat "$run_dir/status.json")
-    # Extract run_id value using parameter expansion
-    # Content looks like: {"run_id": "abc123", ...}
-    local after_key="${content#*\"run_id\": \"}"
-    run_id="${after_key%%\"*}"
+    if command -v jq >/dev/null 2>&1; then
+      run_id=$(jq -r '.run_id // ""' "$run_dir/status.json")
+    else
+      # Fallback: manual JSON parsing (fragile — works only for controlled format)
+      local content
+      content=$(cat "$run_dir/status.json")
+      local after_key="${content#*\"run_id\": \"}"
+      run_id="${after_key%%\"*}"
+    fi
   fi
 
   printf '{"run_id": "%s", "status": "%s", "updated_at": "%s"}\n' \
@@ -177,12 +181,16 @@ hive_get_run_status() {
     return 1
   fi
 
-  local content
-  content=$(cat "$run_dir/status.json")
-  # Extract status value: {"run_id": "...", "status": "running", ...}
-  local after_key="${content#*\"status\": \"}"
-  local status="${after_key%%\"*}"
-  echo "$status"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.status // "unknown"' "$run_dir/status.json"
+  else
+    # Fallback: manual JSON parsing (fragile — works only for controlled format)
+    local content
+    content=$(cat "$run_dir/status.json")
+    local after_key="${content#*\"status\": \"}"
+    local status="${after_key%%\"*}"
+    echo "$status"
+  fi
 }
 
 # Clean up a run directory.
