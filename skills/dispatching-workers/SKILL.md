@@ -50,9 +50,10 @@ For each batch in the plan, sequentially:
 5. **Monitor** — poll result files until all tasks complete or fail
 6. **Handle failures** — retry, escalate, or block
 7. **Merge worktrees** — combine completed work back to main branch
-8. **Run integration** — if any task in the batch requires integration
-9. **Run tests** — full test suite must pass before next batch
-10. **Advance** — update status.json, move to next batch
+8. **Clean up worktrees** — `worktree_cleanup` + delete task branches; never skip
+9. **Run integration** — if any task in the batch requires integration
+10. **Run tests** — full test suite must pass before next batch
+11. **Advance** — update status.json, move to next batch
 
 ### Step 4: Worker Launch
 
@@ -156,28 +157,36 @@ The orchestrator must decide whether to:
 - Abort the run and return to planning phase
 - Ask the user for intervention
 
-## Worktree Merge
+## Worktree Merge and Cleanup
 
-After all tasks in a batch succeed:
+After all tasks in a batch succeed, **always** merge and then clean up — in that order. Leaving worktrees around after a batch causes stale state and pollutes `git worktree list`.
 
 ```bash
 source lib/worktree-manager.sh
 
-# Merge each task's worktree back to the working branch
+# 1. Merge each task's worktree back to the working branch
 for task in batch_tasks; do
   worktree_merge "task-$task"
 done
 
-# Clean up worktrees
+# 2. Clean up immediately after merge — never skip this step
 for task in batch_tasks; do
   worktree_cleanup "task-$task"
 done
+```
+
+Verify cleanup succeeded:
+
+```bash
+git worktree list   # should show only the main worktree
+git branch | grep "hive/$RUN_ID"  # should show no leftover task branches
 ```
 
 If merge conflicts occur:
 1. Attempt automatic resolution for trivial conflicts (both sides added different files)
 2. For non-trivial conflicts, dispatch an integration worker with both versions as context
 3. If integration worker cannot resolve, mark as BLOCKED
+4. Even on BLOCKED: clean up the successful worktrees — only the blocked one stays until resolved
 
 ## Integration Phase
 

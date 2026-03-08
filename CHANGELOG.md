@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.4] - 2026-03-08
+
+### Fixed
+- Worktree cleanup agora é step obrigatório e explícito após merge de cada batch — orquestrador deve limpar worktrees e branches imediatamente após merge para evitar estado obsoleto
+
 ## [1.0.3] - 2026-03-08
 
 ### Fixed
