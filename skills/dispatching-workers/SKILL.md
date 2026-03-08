@@ -190,6 +190,28 @@ The dispatching process uses these library scripts:
 | `lib/result-collector.sh` | Poll result files, detect completion/error markers |
 | `lib/plan-parser.sh` | Extract tasks, model tags, dependencies from plan markdown |
 
+## Known tmux Gotchas
+
+### 1. Prompts com metacaracteres de shell (Bug #1)
+
+**Nunca** passe o prompt do claude inline via `tmux send-keys`. O shell do worker interpreta `'`, `)`, `$`, backticks em tempo real, causando parse errors e vazamento do prompt como texto.
+
+**Sempre** use `hive_write_worker_script` + `hive_launch_worker_script`. Os prompts vão para arquivos; `send-keys` recebe apenas `bash /path/to/task-N.sh`.
+
+### 2. Prefix-matching de window name em sessões hifenadas (Bug #2)
+
+tmux faz prefix-match ao resolver `session:window`. Com session `hive-20260308-162032` e window `task-6`, o target `hive-20260308-162032:task-6` é resolvido como `hive-20260308-162032ask-6` — o `t` de `task-6` é consumido como continuação do nome da sessão.
+
+**Solução:** todas as funções de `lib/tmux-manager.sh` já usam `session:=window_name` (exact match, tmux ≥ 3.x). Se fizer operações tmux manuais, use sempre o prefixo `=`:
+
+```bash
+# Errado — prefix-match pode dar match errado:
+tmux send-keys -t "hive-20260308-162032:task-6" ...
+
+# Correto — exact match por nome:
+tmux send-keys -t "hive-20260308-162032:=task-6" ...
+```
+
 ## Key Principles
 
 - **One worker per task, one worktree per worker.** No shared mutable state between workers.
