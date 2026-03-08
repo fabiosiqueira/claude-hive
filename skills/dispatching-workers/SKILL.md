@@ -81,9 +81,19 @@ Where:
 - `<model-id>` is `claude-haiku-4-5`, `claude-sonnet-4-6`, or `claude-opus-4-6`
 - `<budget-limit>` is scaled by model: Haiku=$0.50, Sonnet=$2.00, Opus=$5.00 (adjustable)
 - `$TASK_PROMPT` and `$SYSTEM_PROMPT` are bash strings — any content is safe (written to files by `hive_write_worker_script`)
-- `$SIGNAL` is the tmux wait-for channel; omit if not using event-driven synchronization
+- `$SIGNAL` is the tmux wait-for channel — **always pass it**. Omitting it disables event-driven sync and forces polling (see Gotcha #5)
 
 `hive_write_worker_script` writes the prompts to `task-N.task-prompt.txt` / `task-N.system-prompt.txt` alongside the script, and generates a wrapper that reads them at runtime. Only `bash /path/to/task-N.sh` is sent via `send-keys` — no metacharacters.
+
+After launching all workers in the batch, the orchestrator waits with no polling:
+
+```bash
+# Collect all signals for the batch
+ALL_SIGNALS="$SIGNAL_1 $SIGNAL_2 $SIGNAL_3"
+
+# Block here — returns immediately when every worker signals done
+hive_wait_for_all_workers "$ALL_SIGNALS"
+```
 
 ### Step 5: Worker Instruction Template
 
@@ -237,6 +247,26 @@ hive_write_worker_script "$SCRIPT_PATH" "$(pwd)/.hive/worktrees/task-$N" ...
 # Funciona mas menos explícito — path relativo (resolvido automaticamente):
 hive_write_worker_script "$SCRIPT_PATH" ".hive/worktrees/task-$N" ...
 ```
+
+### 5. Sempre passe signal_channel para hive_write_worker_script (Bug #3)
+
+`signal_channel` é o **7º argumento** de `hive_write_worker_script` e parece opcional — mas omiti-lo quebra o mecanismo event-driven inteiro.
+
+Sem `signal_channel`, o worker não executa `tmux wait-for -S <channel>` ao terminar. Isso significa que `hive_wait_for_all_workers` nunca acorda — forçando o orquestrador a reinventar um loop de polling manual com `sleep`, que é exatamente o anti-padrão que essa lib foi criada para eliminar.
+
+```bash
+# Errado — signal_channel omitido → orquestrador cai em polling:
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$BUDGET" "$PROMPT" "$SYSPROMPT" ""
+
+# Correto — sempre gerar e passar o signal channel:
+SIGNAL=$(hive_signal_channel "$RUN_ID" "$N")
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$BUDGET" "$PROMPT" "$SYSPROMPT" "$SIGNAL"
+
+# Orquestrador bloqueia sem polling — acorda imediatamente quando o worker terminar:
+hive_wait_for_all_workers "$SIGNAL_1 $SIGNAL_2 $SIGNAL_3"
+```
+
+**Regra:** se você se pegar escrevendo `sleep 30` ou um loop de polling para verificar result files, isso é sinal de que `signal_channel` foi omitido. Corrija na origem.
 
 ## Key Principles
 
