@@ -40,12 +40,26 @@ hive_create_worker() {
 
 # Launch a command in a worker window
 # Args: session_name, worker_name, command
+# WARNING: Only safe for commands without single quotes, parentheses, or other
+# shell metacharacters. For claude invocations with arbitrary prompts,
+# use hive_write_worker_script + hive_launch_worker_script instead.
 hive_launch_worker() {
   local session_name="$1"
   local worker_name="$2"
   local command="$3"
 
   tmux send-keys -t "$session_name:$worker_name" "$command" Enter
+}
+
+# Launch a worker using a pre-written script (preferred over hive_launch_worker)
+# Avoids shell quoting issues: only the script path is sent via send-keys.
+# Args: session_name, worker_name, script_path
+hive_launch_worker_script() {
+  local session_name="$1"
+  local worker_name="$2"
+  local script_path="$3"
+
+  tmux send-keys -t "$session_name:$worker_name" "bash $(printf '%q' "$script_path")" Enter
 }
 
 # Capture output from a worker window
@@ -92,11 +106,79 @@ hive_kill_session() {
   tmux kill-session -t "$session_name" 2>/dev/null || true
 }
 
+# Write a self-contained wrapper script for a worker.
+# Stores prompts as separate files and reads them at runtime — avoids the shell
+# quoting issues that occur when long prompts are sent inline via tmux send-keys.
+# Prompt files are written alongside the script with .task-prompt.txt /
+# .system-prompt.txt suffixes. Use hive_launch_worker_script to run the script.
+# Args: script_path, worktree_path, model, max_budget,
+#       task_prompt (string), system_prompt (string, optional),
+#       signal_channel (optional)
+hive_write_worker_script() {
+  local script_path="$1"
+  local worktree_path="$2"
+  local model="$3"
+  local max_budget="${4:-}"
+  local task_prompt="${5:-}"
+  local system_prompt="${6:-}"
+  local signal_channel="${7:-}"
+
+  local task_prompt_file="${script_path%.sh}.task-prompt.txt"
+  local system_prompt_file="${script_path%.sh}.system-prompt.txt"
+
+  if [[ -n "$task_prompt" ]]; then
+    printf '%s' "$task_prompt" > "$task_prompt_file"
+  fi
+
+  if [[ -n "$system_prompt" ]]; then
+    printf '%s' "$system_prompt" > "$system_prompt_file"
+  fi
+
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'set -euo pipefail\n'
+    printf 'cd %q\n\n' "$worktree_path"
+
+    if [[ -n "$task_prompt" ]]; then
+      printf '_task_prompt=$(cat %q)\n' "$task_prompt_file"
+    fi
+
+    if [[ -n "$system_prompt" ]]; then
+      printf '_system_prompt=$(cat %q)\n' "$system_prompt_file"
+    fi
+
+    printf '\nclaude --model %q --dangerously-skip-permissions' "$model"
+
+    if [[ -n "$system_prompt" ]]; then
+      printf ' \\\n  --append-system-prompt "$_system_prompt"'
+    fi
+
+    if [[ -n "$max_budget" ]]; then
+      printf ' \\\n  --max-budget-usd %q' "$max_budget"
+    fi
+
+    if [[ -n "$task_prompt" ]]; then
+      printf ' \\\n  -p "$_task_prompt"'
+    fi
+
+    printf '\n'
+
+    if [[ -n "$signal_channel" ]]; then
+      printf '\ntmux wait-for -S %q\n' "$signal_channel"
+    fi
+  } > "$script_path"
+
+  chmod +x "$script_path"
+}
+
 # Build the claude command for a worker
 # Args: model, system_prompt, max_budget, task_prompt, signal_channel (optional)
 # Returns: the full command string
 # If signal_channel is provided, appends `; tmux wait-for -S <channel>` so the
 # orchestrator can block on `tmux wait-for <channel>` instead of polling.
+# DEPRECATED: Use hive_write_worker_script + hive_launch_worker_script instead.
+# This function builds a command string that is unsafe to send via tmux send-keys
+# when prompts contain shell metacharacters ($, `, ", \).
 hive_build_claude_command() {
   local model="$1"
   local system_prompt="$2"

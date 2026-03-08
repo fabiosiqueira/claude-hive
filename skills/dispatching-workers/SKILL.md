@@ -56,21 +56,34 @@ For each batch in the plan, sequentially:
 
 ### Step 4: Worker Launch
 
-Each worker is launched with this command pattern:
+Workers are launched via wrapper scripts — **never** by sending the full claude command inline through `tmux send-keys`. Inline commands break when prompts contain single quotes, parentheses, `$`, backticks, or other shell metacharacters.
 
 ```bash
-claude --model <model-id> \
-  --dangerously-skip-permissions \
-  --append-system-prompt "<worker-instructions>" \
-  --max-budget-usd <budget-limit> \
-  -p "<task-prompt>"
+source lib/tmux-manager.sh
+
+SCRIPT_PATH=".hive/runs/$RUN_ID/tasks/task-${N}.sh"
+SIGNAL=$(hive_signal_channel "$RUN_ID" "$N")
+
+hive_write_worker_script \
+  "$SCRIPT_PATH" \
+  ".hive/worktrees/task-$N" \
+  "<model-id>" \
+  "<budget-limit>" \
+  "$TASK_PROMPT" \
+  "$SYSTEM_PROMPT" \
+  "$SIGNAL"
+
+hive_create_worker "hive-$RUN_ID" "task-$N" ".hive/worktrees/task-$N"
+hive_launch_worker_script "hive-$RUN_ID" "task-$N" "$SCRIPT_PATH"
 ```
 
 Where:
 - `<model-id>` is `claude-haiku-4-5`, `claude-sonnet-4-6`, or `claude-opus-4-6`
-- `<worker-instructions>` includes the task description, worktree path, result file path, and completion markers
 - `<budget-limit>` is scaled by model: Haiku=$0.50, Sonnet=$2.00, Opus=$5.00 (adjustable)
-- `<task-prompt>` is the full task description with acceptance criteria
+- `$TASK_PROMPT` and `$SYSTEM_PROMPT` are bash strings — any content is safe (written to files by `hive_write_worker_script`)
+- `$SIGNAL` is the tmux wait-for channel; omit if not using event-driven synchronization
+
+`hive_write_worker_script` writes the prompts to `task-N.task-prompt.txt` / `task-N.system-prompt.txt` alongside the script, and generates a wrapper that reads them at runtime. Only `bash /path/to/task-N.sh` is sent via `send-keys` — no metacharacters.
 
 ### Step 5: Worker Instruction Template
 

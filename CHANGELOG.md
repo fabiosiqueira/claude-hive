@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.0.1] - 2026-03-08
+
+### Fixed
+- `hive_launch_worker` falhava em macOS/zsh quando o prompt continha aspas simples, parênteses ou outros metacaracteres de shell — `tmux send-keys` enviava o texto como input interativo e o zsh interpretava os caracteres em tempo real
+
+### Added
+- `hive_write_worker_script` — gera um wrapper `.sh` por worker com prompts em arquivos separados; elimina a necessidade de passar prompts inline via `send-keys`
+- `hive_launch_worker_script` — envia apenas o caminho do script via `send-keys` (sem metacaracteres)
+
+### Deprecated
+- `hive_build_claude_command` — substituído por `hive_write_worker_script + hive_launch_worker_script`; ainda funciona mas é inseguro para prompts com `$`, backticks ou `"`
+
+### Docs
+- `skills/dispatching-workers/SKILL.md` Step 4 atualizado para o padrão correto com wrapper scripts
+
 ## [3.0.0] - 2026-03-08
 
 ### Changed
