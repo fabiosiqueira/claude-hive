@@ -109,8 +109,9 @@ RESULT FILE: .hive/runs/<run-id>/tasks/task-<N>.result.md
 RULES:
 - Work ONLY in your worktree directory
 - Follow TDD: write test first, then implement
-- When done, write your result file with HIVE_TASK_COMPLETE at the end
-- On unrecoverable error, write result file with HIVE_TASK_ERROR at the end
+- Commit ALL changes before writing the result file: git add <files> && git commit -m "hive: task <N> — <description>"
+- Only AFTER committing: write your result file with HIVE_TASK_COMPLETE at the end
+- On unrecoverable error, commit any partial work, then write result file with HIVE_TASK_ERROR at the end
 - Do NOT modify files outside your worktree
 - Do NOT communicate with other workers
 

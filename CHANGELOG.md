@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.3] - 2026-03-08
+
+### Fixed
+- Bug 3.1: system prompt do worker não exigia commit antes de `HIVE_TASK_COMPLETE` — worktree_merge não capturava o trabalho. Instrução de commit agora explícita no template Step 5 do dispatching-workers skill.
+
 ## [1.0.2] - 2026-03-08
 
 ### Fixed
