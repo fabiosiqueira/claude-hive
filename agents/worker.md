@@ -61,6 +61,37 @@ Every piece of logic you produce must have a test written BEFORE the implementat
 - Use spread operators, `Array.from()`, or `structuredClone()` for copies
 - Mutable state is acceptable only inside a function when not shared
 
+## Context Overload Checkpoint
+
+After reading files to understand the task scope — and **before writing any implementation or test** — pause and count how many files you had to read.
+
+**If you have read 3 or more interconnected files and still have not written a single line of implementation or test code, you are in a context overload situation.**
+
+Do not continue. Do not attempt to push through. Write a `HIVE_TASK_CONTEXT_HEAVY` result file immediately and stop.
+
+This is not a failure — it is a signal that the task needs to be re-routed to Opus or split into a read phase + write phase. Burning all your remaining turns on more reads produces nothing useful.
+
+Context overload result file format:
+```
+## Context Overload
+
+Files read before stopping:
+- path/to/file1.ts
+- path/to/file2.ts
+- path/to/file3.ts
+
+Blocking dependency chain:
+<Describe how the modules interconnect — what you learned and why you need more context>
+
+Recommended split:
+- Task A: [Haiku] [simple] "Summarize the interaction between X, Y, Z" → writes task-<N>.context-summary.md
+- Task B: [<original tier or Opus>] [<complexity>] "Implement fix using summary from Task A"
+
+HIVE_TASK_CONTEXT_HEAVY
+```
+
+Also write the progress file entry: `echo "[$(date +%H:%M:%S)] CONTEXT_OVERLOAD: stopped after reading N files without implementation" >> <progress-file>`
+
 ## Completion Protocol
 
 ### On Success

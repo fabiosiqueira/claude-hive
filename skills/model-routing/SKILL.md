@@ -95,6 +95,35 @@ Step 3: If Opus fails -> mark task BLOCKED
 
 Do not skip tiers. The escalation must be sequential to keep costs controlled.
 
+### Context Overload Escalation (HIVE_TASK_CONTEXT_HEAVY)
+
+This is a separate escalation path — triggered when a worker self-signals context overload
+**before** exhausting its turns. It is NOT a task failure; it is an early exit with a diagnosis.
+
+```
+On HIVE_TASK_CONTEXT_HEAVY:
+
+  Do NOT retry with same model — context depth is model-independent at lower tiers.
+  Do NOT follow the standard escalation chain (Step 1 → 2 → 3).
+
+  Read the worker's "Recommended split" from the result file.
+
+  Option A — Split (preferred when recommended split is clear):
+    1. Create Task A: [Haiku] [simple] "Summarize interaction between X, Y, Z"
+       - Output: task-<N>.context-summary.md in the run context dir
+    2. Create Task B: [<original tier or Opus>] "Implement using summary from Task A"
+       - Depends on: Task A
+    These replace the original task. Original worktree can be reused for Task B.
+
+  Option B — Upgrade to Opus (when split is unclear or modules are too coupled to separate):
+    1. Re-dispatch the same task with [Opus] and --max-turns 200
+    2. Pass the worker's "Blocking dependency chain" as additional context in the task prompt
+       so Opus does not repeat the same reads from scratch
+```
+
+Use Option A by default. Option B only when the worker's result indicates the modules
+cannot be meaningfully summarized before implementation.
+
 ## Context Depth Signals
 
 Some tasks require reading 3+ interconnected modules before any implementation can begin.

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.10] - 2026-03-08
+
+### Added
+- `agents/worker.md`: "Context Overload Checkpoint" — worker conta arquivos lidos antes de qualquer implementação; ao atingir 3+ módulos interdependentes sem escrever código, para e escreve `HIVE_TASK_CONTEXT_HEAVY` com diagnóstico e split recomendado
+- `skills/model-routing/SKILL.md`: "Context Overload Escalation (HIVE_TASK_CONTEXT_HEAVY)" na Escalation Policy — caminho separado do HIVE_TASK_ERROR; opção A (split Haiku+original) é o default, opção B (upgrade Opus com contexto do worker) para módulos muito acoplados
+
 ## [1.0.9] - 2026-03-08
 
 ### Added
