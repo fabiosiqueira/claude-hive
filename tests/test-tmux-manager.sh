@@ -208,11 +208,11 @@ fi
 first_line=$(head -1 "$TMPSCRIPT")
 assert_eq "primeira linha é shebang" "#!/usr/bin/env bash" "$first_line"
 
-if grep -q "set -euo pipefail" "$TMPSCRIPT"; then
-  echo "  PASS: script contém set -euo pipefail"
+if grep -q "set -uo pipefail" "$TMPSCRIPT"; then
+  echo "  PASS: script contém set -uo pipefail (sem -e para não abortar antes do trap)"
   ((PASS++))
 else
-  echo "  FAIL: script não contém set -euo pipefail"
+  echo "  FAIL: script não contém set -uo pipefail"
   ((FAIL++))
 fi
 rm -f "$TMPSCRIPT"
@@ -319,11 +319,11 @@ echo ""
 echo "--- hive_write_worker_script — signal channel ---"
 TMPSCRIPT_SIG=$(mktemp /tmp/hive-test-XXXXX.sh)
 hive_write_worker_script "$TMPSCRIPT_SIG" "/tmp" "claude-haiku-4-5" "" "task" "" "hive-abc-task-1-done"
-if grep -q "tmux wait-for -S" "$TMPSCRIPT_SIG" && grep -q "hive-abc-task-1-done" "$TMPSCRIPT_SIG"; then
-  echo "  PASS: script com signal contém tmux wait-for -S <channel>"
+if grep -q "trap" "$TMPSCRIPT_SIG" && grep -q "wait-for" "$TMPSCRIPT_SIG" && grep -q "hive-abc-task-1-done" "$TMPSCRIPT_SIG"; then
+  echo "  PASS: script com signal contém trap com wait-for <channel>"
   ((PASS++))
 else
-  echo "  FAIL: script com signal não contém wait-for correto"
+  echo "  FAIL: script com signal não contém trap wait-for correto"
   ((FAIL++))
 fi
 rm -f "$TMPSCRIPT_SIG"

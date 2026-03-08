@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5] - 2026-03-08
+
+### Fixed
+- Bug 4.1: `tmux wait-for -S` nunca disparava — `set -e` abortava o script quando claude
+  retornava exit code != 0 (budget, timeout, etc), impedindo o signal. Corrigido usando
+  `trap 'tmux wait-for -S <channel>' EXIT` que dispara sempre, e removendo `-e` do `set`.
+
 ## [1.0.4] - 2026-03-08
 
 ### Fixed

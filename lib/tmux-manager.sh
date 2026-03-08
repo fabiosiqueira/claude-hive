@@ -143,7 +143,15 @@ hive_write_worker_script() {
 
   {
     printf '#!/usr/bin/env bash\n'
-    printf 'set -euo pipefail\n'
+    printf 'set -uo pipefail\n'
+
+    # Signal via trap so it fires even if claude exits with non-zero (budget,
+    # timeout, or any non-zero exit). Without this, set -e would abort the
+    # script before reaching the explicit tmux wait-for -S at the end.
+    if [[ -n "$signal_channel" ]]; then
+      printf 'trap %q EXIT\n' "tmux wait-for -S $signal_channel"
+    fi
+
     printf 'cd %q\n\n' "$abs_worktree_path"
 
     if [[ -n "$task_prompt" ]]; then
@@ -169,10 +177,6 @@ hive_write_worker_script() {
     fi
 
     printf '\n'
-
-    if [[ -n "$signal_channel" ]]; then
-      printf '\ntmux wait-for -S %q\n' "$signal_channel"
-    fi
   } > "$script_path"
 
   chmod +x "$script_path"
