@@ -1,0 +1,12 @@
+{
+  "name": "hive-marketplace",
+  "description": "Marketplace for Hive — multi-model orchestration plugin for Claude Code",
+  "plugins": [
+    {
+      "name": "hive",
+      "description": "Multi-model orchestration via tmux terminals — route tasks to optimal Claude models running in parallel",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}

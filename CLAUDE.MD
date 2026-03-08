@@ -1,64 +1,72 @@
-# VoltAgent Circle v2 — Soft House AI no Claude Code
+# Hive — Multi-Model Orchestration Plugin for Claude Code
 
-Você é o VoltAgent Circle — uma soft house AI completa, construída sobre o framework **Superpowers** com extensões especializadas.
+Plugin standalone que orquestra múltiplos terminais tmux, cada um rodando Claude Code com um modelo diferente. Roteia tasks para o modelo ideal por complexidade.
 
 ## Arquitetura
 
 ```
-Superpowers (base)
-├── /brainstorm             → refinar requisitos com o usuário
-├── /write-plan             → plano granular com tasks de 2-5 min
-├── /execute-plan           → implementação com subagentes + review
-├── TDD, code review, git worktrees, debugging, parallel agents (skills)
+Hive Plugin
+├── Orchestration Layer (tmux + model routing)
+│   ├── lib/tmux-manager.sh        → criar/gerenciar sessões e workers
+│   ├── lib/plan-parser.sh         → extrair tasks, modelos, dependências
+│   ├── lib/result-collector.sh    → coletar resultados, detectar conflitos
+│   └── lib/worktree-manager.sh    → criar/limpar worktrees por worker
 │
-└── Circle Extensions
-    ├── /design-system      → design system + componentes UI
-    ├── /validate-ux        → testes reais com Playwright MCP
-    ├── /security-review    → audit OWASP + review focado
-    └── /ship               → deploy (commit, push, PR, docker)
+├── Skills (~16 skills em skills/<name>/SKILL.md)
+│   ├── Orchestration: using-hive, dispatching-workers, worker-communication,
+│   │   model-routing, integrating-modules, collecting-results, cost-tracking
+│   └── Process: brainstorming, writing-plans, TDD, debugging, verification,
+│       code-review, git-worktrees, finishing-branch, writing-skills
+│
+├── Commands (8 em commands/)
+│   ├── /hive, /hive-plan, /hive-dispatch, /hive-status
+│   └── /design-system, /validate-ux, /security-review, /ship
+│
+├── Agents (agents/)
+│   ├── worker.md, integrator.md, reviewer.md
+│
+└── Lib (lib/) — shell scripts de orquestração
 ```
 
-## Pipeline completo (`/circle`)
+## Pipeline (`/hive`)
 
 ```
-1. /brainstorm        → refinar o pedido
-2. /write-plan        → plano com tasks granulares
-3. /design-system     → se projeto tem UI
-4. /execute-plan      → implementação com subagentes
-5. /validate-ux       → se projeto tem UI
-6. /security-review   → audit de segurança
-7. /ship              → deploy final
+1. /hive-plan       → lê CLAUDE.md + docs/roadmap.md, gera plano com model tags
+2. /hive-dispatch   → cria tmux session, worktrees, lança workers em paralelo
+3. Integração       → merge worktrees, dispatch integration worker se necessário
+4. Review           → testes completos, code review
+5. /ship            → versão, changelog, commit, push, PR
 ```
 
-Cada fase tem gate objetivo. Se falhar, volta à fase que falhou.
+## Model Routing
 
-## Regras do Circle
+| Tag | Modelo | Uso |
+|-----|--------|-----|
+| `[Haiku]` | claude-haiku-4-5 | Schema, CRUD, boilerplate |
+| `[Sonnet]` | claude-sonnet-4-6 | Business logic, APIs, testes |
+| `[Opus]` | claude-opus-4-6 | Arquitetura, segurança, algoritmos complexos |
 
-### OVERRIDE: Superpowers using-superpowers
-- NÃO invoque skills com "1% de chance". Invoque APENAS quando **claramente** aplicável.
-- Skills que NÃO precisam ser invocadas explicitamente (já estão nos hooks/rules globais):
-  - TDD (já obrigatório via rules/testing.md)
-  - TypeScript checks (já via regras globais)
-- Skill errado = contexto desperdiçado. Na dúvida, NÃO invoque.
+## Worker Isolation
 
-### Tags de complexidade nos planos
-Cada task no plano gerado por `/write-plan` pode ter uma tag:
-- `[simple]` — tarefas mecânicas (renomear, adicionar campo, criar arquivo)
-- `[moderate]` — tarefas que requerem entendimento de contexto
-- `[complex]` — tarefas que requerem raciocínio arquitetural
+Cada worker recebe git worktree isolada em `.hive/worktrees/task-<N>/`.
+Workers são lançados com `claude --model <model> --dangerously-skip-permissions`.
+Comunicação via filesystem: `.hive/runs/<run-id>/tasks/task-<N>.result.md`.
 
-Uso: metadata para batch sizing (simples → batches maiores) e futuro roteamento de modelos.
+## Regras
+
+### Skills
+- Invoque skills APENAS quando claramente aplicável
+- Skill errado = contexto desperdiçado. Na dúvida, NÃO invoque
 
 ### Quality Gates
-- **Plano**: tasks granulares com paths exatos e código — não aceitar planos vagos
-- **Implementação**: TDD obrigatório, cada task commitada
-- **Design**: spec salva em `docs/design-spec.md` com tokens, componentes, layouts
-- **UX**: todas interações testadas via Playwright MCP (se UI)
-- **Segurança**: 0 issues CRITICAL/HIGH no review
+- **Plano**: tasks granulares com paths exatos, model tags, dependency graph
+- **Implementação**: TDD obrigatório, cada task em worktree isolada
+- **Integração**: integration worker conecta módulos + testes de integração
+- **Segurança**: 0 issues CRITICAL/HIGH
 - **Deploy**: changelog atualizado, README atualizado, versão semver
 
 ### Convenções
 - Planos salvos em `docs/plans/YYYY-MM-DD-<feature>.md`
 - Design specs em `docs/design-spec.md`
-- Stack padrão: Next.js 15 + Tailwind + shadcn/ui + Prisma + PostgreSQL
-- TypeScript `strict: true` sempre, nunca `any`
+- Estado de execução em `.hive/runs/<run-id>/`
+- Worktrees em `.hive/worktrees/`

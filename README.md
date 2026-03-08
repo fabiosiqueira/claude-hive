@@ -1,84 +1,85 @@
-# VoltAgent Circle v2
+# Hive
 
-Soft house AI completa dentro do Claude Code. Construída sobre o framework [Superpowers](https://github.com/obra/superpowers) com extensões especializadas para design, validação UX, segurança e deploy.
+Multi-model orchestration plugin for Claude Code. Routes tasks to optimal Claude models running in parallel tmux terminals.
 
-## Arquitetura
+## What it does
+
+- Creates a plan with model-tagged tasks (`[Haiku]`, `[Sonnet]`, `[Opus]`)
+- Launches parallel tmux terminals, each running Claude Code with the assigned model
+- Each worker gets an isolated git worktree — zero conflicts during execution
+- Merges results, runs integration workers when modules need to communicate
+- Includes full pipeline: brainstorm, plan, design, execute, validate, security, ship
+
+## Architecture
 
 ```
-Superpowers (base)
-├── /brainstorm             → refinar requisitos
-├── /write-plan             → plano granular (tasks de 2-5 min)
-├── /execute-plan           → implementação com subagentes + review
-├── TDD, code review, git worktrees, debugging (skills nativas)
-│
-└── Circle Extensions
-    ├── /design-system      → design tokens, componentes, layouts
-    ├── /validate-ux        → testes reais via Playwright MCP
-    ├── /security-review    → audit OWASP Top 10
-    └── /ship               → versão, changelog, commit, push, PR
+Orchestrator (your Claude Code session)
+    │
+    ├── /hive-plan → reads CLAUDE.md + roadmap.md, creates model-tagged plan
+    │
+    ├── /hive-dispatch → for each batch of parallel tasks:
+    │   ├── Worker 1 [Haiku]  → tmux pane → git worktree → simple task
+    │   ├── Worker 2 [Sonnet] → tmux pane → git worktree → moderate task
+    │   └── Worker 3 [Opus]   → tmux pane → git worktree → complex task
+    │
+    ├── Integration Worker → merges worktrees, connects modules, writes integration tests
+    │
+    └── /ship → version, changelog, commit, push, PR
 ```
 
-## Pipeline completo
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/hive` | Full pipeline |
+| `/hive-plan` | Create model-tagged plan |
+| `/hive-dispatch` | Dispatch workers to tmux terminals |
+| `/hive-status` | Check worker status |
+| `/design-system` | Generate design system |
+| `/validate-ux` | Validate UX with Playwright |
+| `/security-review` | Security audit |
+| `/ship` | Final deploy |
+
+## Model Routing
+
+| Tag | Model | Use case | Cost |
+|-----|-------|----------|------|
+| `[Haiku]` | claude-haiku-4-5 | Schema, CRUD, boilerplate | ~$0.25/$1.25 per MTok |
+| `[Sonnet]` | claude-sonnet-4-6 | Business logic, APIs, tests | ~$3/$15 per MTok |
+| `[Opus]` | claude-opus-4-6 | Architecture, security, complex algorithms | ~$15/$75 per MTok |
+
+## Prerequisites
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- `tmux` installed (`brew install tmux` on macOS)
+- Git configured
+
+## Installation
 
 ```bash
-/circle   # executa todas as fases em ordem com quality gates
+# TODO: publish to marketplace
+# claude plugins install hive
 ```
 
-Fases:
-1. **Brainstorm** — refinar requisitos com o usuário
-2. **Planejar** — tasks granulares com paths exatos e código
-3. **Design** — design system + componentes (se UI)
-4. **Implementar** — subagentes com TDD + code review
-5. **Validar UX** — testes reais com Playwright (se UI)
-6. **Security Review** — audit OWASP + verificações automatizadas
-7. **Ship** — versão semver, changelog, push, PR
+## How Workers Communicate
 
-Cada fase tem gate objetivo. Falha → volta à fase que falhou.
-
-## Comandos disponíveis
-
-| Comando | Descrição |
-|---------|-----------|
-| `/circle` | Pipeline completo |
-| `/brainstorm` | Refinar requisitos (Superpowers) |
-| `/write-plan` | Criar plano de implementação (Superpowers) |
-| `/execute-plan` | Executar plano com subagentes (Superpowers) |
-| `/design-system` | Gerar design system |
-| `/validate-ux` | Validar UX com Playwright |
-| `/security-review` | Audit de segurança |
-| `/ship` | Deploy final |
-
-## Pré-requisitos
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) instalado
-- Plugin [Superpowers](https://github.com/obra/superpowers) instalado (`claude plugins install superpowers`)
-- Playwright MCP configurado (para `/validate-ux`)
-
-## Estrutura
+Workers use filesystem-based communication (not tmux send-keys):
 
 ```
-voltagent-circle/
-├── CLAUDE.MD                          # regras e arquitetura do Circle v2
-├── .claude/commands/
-│   ├── circle.md                      # pipeline completo
-│   ├── design-system.md               # extensão: design
-│   ├── validate-ux.md                 # extensão: validação UX
-│   ├── security-review.md             # extensão: segurança
-│   └── ship.md                        # extensão: deploy
-├── docs/
-│   ├── plans/                         # planos gerados pelo /write-plan
-│   ├── design-spec.md                 # spec de design (gerado pelo /design-system)
-│   └── references/                    # referência histórica da v1
-└── README.md
+.hive/
+├── runs/<run-id>/
+│   ├── plan.md              # Full plan (workers read this)
+│   ├── context/             # Project context files
+│   ├── tasks/
+│   │   ├── task-1.assigned.json
+│   │   ├── task-1.result.md  # Worker writes: HIVE_TASK_COMPLETE
+│   │   └── ...
+│   └── status.json
+└── worktrees/
+    ├── task-1/              # Isolated git worktree
+    └── task-2/
 ```
 
-## Diferenças da v1
+## License
 
-| Aspecto | v1 | v2 |
-|---------|----|----|
-| Modelo mental | "Equipe de 8 pessoas" | "Processo com quality gates" |
-| Subagentes | Por papel (Designer, QA...) | Por task (1 subagente/task) |
-| Contexto | Fragmentado (8 handoffs) | Preservado (orquestrador mantém contexto) |
-| Skills | Links para repos GitHub | Arquivos `.md` executáveis |
-| Quality gates | "Confiança < 85%" | Gates objetivos e verificáveis |
-| Roteamento de modelos | Impossível no Claude Code | Tags de complexidade (metadata) |
+MIT

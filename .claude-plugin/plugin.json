@@ -1,0 +1,19 @@
+{
+  "name": "hive",
+  "description": "Multi-model orchestration via tmux terminals — route tasks to optimal Claude models running in parallel",
+  "version": "0.1.0",
+  "author": {
+    "name": "Fabio Siqueira"
+  },
+  "homepage": "https://github.com/fabiosiqueira/hive",
+  "repository": "https://github.com/fabiosiqueira/hive",
+  "license": "MIT",
+  "keywords": [
+    "orchestration",
+    "multi-model",
+    "tmux",
+    "parallel",
+    "cost-optimization",
+    "model-routing"
+  ]
+}

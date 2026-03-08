@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash /Users/fabiosiqueira/dev/projetos/voltagent-circle/tests/test-tmux-manager.sh)",
+      "Bash(bash /Users/fabiosiqueira/dev/projetos/voltagent-circle/tests/test-worktree-manager.sh)",
+      "Bash(bash tests/test-worktree-manager.sh)",
+      "Bash(bash tests/test-plan-parser.sh)",
+      "Bash(bash tests/test-result-collector.sh)",
+      "Bash(bash /Users/fabiosiqueira/dev/projetos/voltagent-circle/tests/test-plan-parser.sh)",
+      "Bash(bash tests/test-tmux-manager.sh)",
+      "Bash(wc -l /Users/fabiosiqueira/dev/projetos/voltagent-circle/agents/*.md)",
+      "Bash(bash hooks/session-start)"
+    ]
+  }
+}
