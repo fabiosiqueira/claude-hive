@@ -61,11 +61,11 @@ Show the complete plan to the user with:
 
 Wait for explicit approval before saving.
 
-## Step 6: Save Plan
+## Step 6: Save and Dispatch
 
 Save the approved plan to `docs/plans/YYYY-MM-DD-<feature>.md`. If roadmap ingestion happened in Step 2, delete `docs/roadmap.md` now.
 
-Inform the user: "Plan approved and saved. Ready to dispatch workers with `/hive-dispatch`."
+Do NOT wait for the user to type `/hive-dispatch`. Proceed immediately to dispatch by invoking the `/hive-dispatch` command now.
 
 ## Gate
 

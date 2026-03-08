@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.6] - 2026-03-08
+
+### Changed
+- `/hive-plan` agora dispara dispatch automaticamente após aprovação do plano — sem necessidade de chamar `/hive-dispatch` manualmente
+- `/hive-dispatch` exibe tabela de status em tempo real durante execução: monitor em background atualiza a cada 10s, encerra ao receber todos os signals event-driven
+
 ## [1.0.5] - 2026-03-08
 
 ### Fixed

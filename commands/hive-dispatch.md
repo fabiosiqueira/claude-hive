@@ -42,9 +42,47 @@ For each batch in the plan, sequentially:
 - Workers run in their own worktree with filesystem-based communication
 
 ### 4c. Monitor Progress
-- Use `tmux wait-for` for event-driven completion detection
-- Poll `.hive/runs/<run-id>/tasks/` for `HIVE_TASK_COMPLETE` or `HIVE_TASK_ERROR` markers
-- Update `status.json` as tasks complete
+
+After launching all workers, show an initial status table, then start a background monitor that refreshes every 10 seconds while waiting for all signals:
+
+```bash
+# Print live status table
+hive_print_status() {
+  local run_dir="$1"; shift; local tasks=("$@")
+  echo ""
+  echo "┌─ Run: $RUN_ID | Batch: $BATCH | $(date +%H:%M:%S) ─────────────────"
+  printf "│ %-6s %-10s %-10s %s\n" "Task" "Model" "Status" "Output (last line)"
+  echo "│ ──────────────────────────────────────────────────────────────"
+  for N in "${tasks[@]}"; do
+    local result="$run_dir/tasks/task-$N.result.md"
+    local status="running"
+    if grep -q "HIVE_TASK_COMPLETE" "$result" 2>/dev/null; then status="✓ done"
+    elif grep -q "HIVE_TASK_ERROR" "$result" 2>/dev/null; then status="✗ error"; fi
+    local last
+    last=$(tmux capture-pane -t "$SESSION:=task-$N" -p -S -3 2>/dev/null | grep -v '^$' | tail -1 | cut -c1-50 || echo "")
+    local model; model=$(jq -r '.model' "$run_dir/tasks/task-$N.assigned.json" 2>/dev/null || echo "?")
+    printf "│ %-6s %-10s %-10s %s\n" "$N" "$model" "$status" "$last"
+  done
+  echo "└─────────────────────────────────────────────────────────────────"
+}
+
+# Background monitor — prints status every 10s until killed
+(while true; do
+  hive_print_status "$RUN_DIR" "${BATCH_TASKS[@]}"
+  sleep 10
+done) &
+MONITOR_PID=$!
+
+# Event-driven wait — returns immediately when all workers signal done
+hive_wait_for_all_workers "$ALL_SIGNALS"
+
+# Stop monitor and show final status
+kill "$MONITOR_PID" 2>/dev/null
+hive_print_status "$RUN_DIR" "${BATCH_TASKS[@]}"
+echo "✓ Batch $BATCH complete"
+```
+
+Update `status.json` as tasks complete.
 
 ### 4d. Handle Failures
 - First failure: retry with same model (clean worktree, fresh launch)
