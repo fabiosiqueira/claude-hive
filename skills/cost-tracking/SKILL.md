@@ -93,18 +93,18 @@ Present estimates to the user before dispatch:
 
 ## Budget Allocation
 
-### Per-Worker Budget Cap
+### Per-Worker Turn Limit
 
-Use the `--max-budget-usd` flag when launching each worker via `hive_build_claude_command()` from `lib/tmux-manager.sh`:
+Use the `--max-turns` flag when launching each worker via `hive_write_worker_script()` from `lib/tmux-manager.sh`. This flag works with all Claude plans, including Claude Max subscription. `--max-budget-usd` is NOT used — it requires API billing and breaks with Claude Max.
 
-| Complexity | Suggested Budget Cap |
-|------------|---------------------|
-| `[simple]` Haiku | $0.05 |
-| `[moderate]` Sonnet | $0.50 |
-| `[complex]` Opus | $5.00 |
-| Integration worker | $2.00 - $5.00 (based on batch complexity) |
+| Complexity | Suggested `--max-turns` |
+|------------|------------------------|
+| `[simple]` Haiku | 30 |
+| `[moderate]` Sonnet | 80 |
+| `[complex]` Opus | 150 |
+| Integration worker | 80–150 (based on batch complexity) |
 
-These caps prevent any single worker from consuming disproportionate resources. If a worker hits its budget limit, it stops — this is better than unbounded spend.
+These caps prevent infinite loops and runaway workers. If a worker exhausts its turns, it stops — the orchestrator treats this as `HIVE_TASK_ERROR` and applies the normal retry/escalation logic.
 
 ### Run-Level Budget
 
@@ -183,12 +183,12 @@ During a run, the orchestrator should flag these conditions:
 | Single task estimated > $5 | Warning | Confirm with user before dispatch |
 | Total run estimated > $10 | Warning | Show cost table, ask for confirmation |
 | Escalation adds > 50% to batch cost | Info | Log in cost report, note for optimization |
-| Worker hits budget cap | Error | Worker stops, log the event, decide retry or abort |
+| Worker exhausts `--max-turns` | Error | Worker stops, log the event, decide retry or abort |
 
 ## Key Principles
 
 - **Estimate before dispatch.** Never start a run without knowing the expected cost.
-- **Budget cap every worker.** Use `--max-budget-usd` on every `claude` invocation. No unbounded workers.
+- **Turn limit every worker.** Use `--max-turns` on every `claude` invocation (Haiku=30, Sonnet=80, Opus=150). No unbounded workers. Never use `--max-budget-usd` — incompatível com Claude Max.
 - **Cheapest model that works.** Every Opus task should have a justification. Default to Sonnet for ambiguous cases.
 - **Track escalation cost separately.** Escalations are hidden costs — make them visible in the report.
 - **Cost report is mandatory.** Every completed run gets a cost report in `.hive/runs/<run-id>/cost-report.md`.

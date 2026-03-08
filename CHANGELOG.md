@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.8] - 2026-03-08
+
+### Fixed
+- Substituído `--max-budget-usd` por `--max-turns` em toda a stack — `--max-budget-usd` requer billing por API e quebra workers com plano Claude Max (subscription). `--max-turns` funciona em qualquer plano.
+- Valores padrão por tier: Haiku=30, Sonnet=80, Opus=150
+- Atualizado `lib/tmux-manager.sh` (`hive_write_worker_script`, `hive_build_claude_command`), `skills/dispatching-workers`, `skills/cost-tracking`, `skills/model-routing`, `commands/hive-dispatch.md` e testes
+
 ## [1.0.7] - 2026-03-08
 
 ### Added

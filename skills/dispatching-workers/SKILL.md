@@ -69,7 +69,7 @@ hive_write_worker_script \
   "$SCRIPT_PATH" \
   ".hive/worktrees/task-$N" \
   "<model-id>" \
-  "<budget-limit>" \
+  "<max-turns>" \
   "$TASK_PROMPT" \
   "$SYSTEM_PROMPT" \
   "$SIGNAL"
@@ -80,7 +80,7 @@ hive_launch_worker_script "hive-$RUN_ID" "task-$N" "$SCRIPT_PATH"
 
 Where:
 - `<model-id>` is `claude-haiku-4-5`, `claude-sonnet-4-6`, or `claude-opus-4-6`
-- `<budget-limit>` is scaled by model: Haiku=$0.50, Sonnet=$2.00, Opus=$5.00 (adjustable)
+- `<max-turns>` limits worker turns to prevent infinite loops: Haiku=30, Sonnet=80, Opus=150 (adjustable). Use `--max-turns`, NOT `--max-budget-usd` — budget flags require API billing and break with Claude Max subscription.
 - `$TASK_PROMPT` and `$SYSTEM_PROMPT` are bash strings — any content is safe (written to files by `hive_write_worker_script`)
 - `$SIGNAL` is the tmux wait-for channel — **always pass it**. Omitting it disables event-driven sync and forces polling (see Gotcha #5)
 
@@ -240,18 +240,19 @@ tmux send-keys -t "hive-20260308-162032:task-6" ...
 tmux send-keys -t "hive-20260308-162032:=task-6" ...
 ```
 
-### 3. Nunca gere scripts de worker manualmente
+### 3. Nunca gere scripts de worker manualmente. Nunca use `--max-budget-usd`.
 
-`--budget-tokens` **NÃO É uma flag válida** do claude CLI. A flag correta é `--max-budget-usd`.
+`--max-budget-usd` e `--budget-tokens` **NÃO funcionam com Claude Max** (plano de assinatura). Essas flags requerem billing por API — com plano Max, o worker falha imediatamente sem executar nada. A flag correta para controle de execução é `--max-turns`.
 
 Nunca construa scripts de worker à mão. Sempre use `hive_write_worker_script` — ela gera o script correto, com flags válidas, prompts em arquivos, e path absoluto no `cd`.
 
 ```bash
-# Errado — flag inválida, geração manual:
+# Errado — flags de budget quebram com Claude Max:
+echo "claude --model sonnet --max-budget-usd 2.00 -p '$PROMPT'" > script.sh
 echo "claude --model sonnet --budget-tokens 10000 -p '$PROMPT'" > script.sh
 
-# Correto — sempre via hive_write_worker_script:
-hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "claude-sonnet-4-6" "2.00" "$PROMPT" "" ""
+# Correto — sempre via hive_write_worker_script com --max-turns:
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "claude-sonnet-4-6" "80" "$PROMPT" "" ""
 ```
 
 ### 4. Passe sempre path absoluto para hive_write_worker_script
@@ -274,11 +275,11 @@ Sem `signal_channel`, o worker não executa `tmux wait-for -S <channel>` ao term
 
 ```bash
 # Errado — signal_channel omitido → orquestrador cai em polling:
-hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$BUDGET" "$PROMPT" "$SYSPROMPT" ""
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$MAX_TURNS" "$PROMPT" "$SYSPROMPT" ""
 
 # Correto — sempre gerar e passar o signal channel:
 SIGNAL=$(hive_signal_channel "$RUN_ID" "$N")
-hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$BUDGET" "$PROMPT" "$SYSPROMPT" "$SIGNAL"
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$MAX_TURNS" "$PROMPT" "$SYSPROMPT" "$SIGNAL"
 
 # Orquestrador bloqueia sem polling — acorda imediatamente quando o worker terminar:
 hive_wait_for_all_workers "$SIGNAL_1 $SIGNAL_2 $SIGNAL_3"
@@ -292,5 +293,5 @@ hive_wait_for_all_workers "$SIGNAL_1 $SIGNAL_2 $SIGNAL_3"
 - **Batches are atomic.** All tasks in a batch must complete before the next batch starts.
 - **Retry before escalate, escalate before block.** Maximize chance of automatic recovery.
 - **Tests gate batch transitions.** The test suite must pass after merge before advancing.
-- **Budget limits prevent runaway costs.** Each worker has a hard USD cap.
+- **Turn limits prevent infinite loops.** Each worker has a `--max-turns` cap (Haiku=30, Sonnet=80, Opus=150).
 - **The plan is the contract.** Workers execute exactly what the plan specifies, nothing more.

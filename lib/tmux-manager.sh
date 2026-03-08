@@ -113,14 +113,17 @@ hive_kill_session() {
 # quoting issues that occur when long prompts are sent inline via tmux send-keys.
 # Prompt files are written alongside the script with .task-prompt.txt /
 # .system-prompt.txt suffixes. Use hive_launch_worker_script to run the script.
-# Args: script_path, worktree_path, model, max_budget,
+# Args: script_path, worktree_path, model, max_turns,
 #       task_prompt (string), system_prompt (string, optional),
 #       signal_channel (optional)
+# max_turns: limits worker turns to prevent infinite loops (works with all plans,
+#            including Claude Max subscription — unlike --max-budget-usd which
+#            requires API billing). Defaults: Haiku=30, Sonnet=80, Opus=150.
 hive_write_worker_script() {
   local script_path="$1"
   local worktree_path="$2"
   local model="$3"
-  local max_budget="${4:-}"
+  local max_turns="${4:-}"
   local task_prompt="${5:-}"
   local system_prompt="${6:-}"
   local signal_channel="${7:-}"
@@ -145,9 +148,9 @@ hive_write_worker_script() {
     printf '#!/usr/bin/env bash\n'
     printf 'set -uo pipefail\n'
 
-    # Signal via trap so it fires even if claude exits with non-zero (budget,
-    # timeout, or any non-zero exit). Without this, set -e would abort the
-    # script before reaching the explicit tmux wait-for -S at the end.
+    # Signal via trap so it fires even if claude exits with non-zero (turns
+    # exhausted, timeout, or any non-zero exit). Without this, set -e would
+    # abort the script before reaching the explicit tmux wait-for -S at the end.
     if [[ -n "$signal_channel" ]]; then
       printf 'trap %q EXIT\n' "tmux wait-for -S $signal_channel"
     fi
@@ -168,8 +171,8 @@ hive_write_worker_script() {
       printf ' \\\n  --append-system-prompt "$_system_prompt"'
     fi
 
-    if [[ -n "$max_budget" ]]; then
-      printf ' \\\n  --max-budget-usd %q' "$max_budget"
+    if [[ -n "$max_turns" ]]; then
+      printf ' \\\n  --max-turns %q' "$max_turns"
     fi
 
     if [[ -n "$task_prompt" ]]; then
@@ -183,7 +186,7 @@ hive_write_worker_script() {
 }
 
 # Build the claude command for a worker
-# Args: model, system_prompt, max_budget, task_prompt, signal_channel (optional)
+# Args: model, system_prompt, max_turns, task_prompt, signal_channel (optional)
 # Returns: the full command string
 # If signal_channel is provided, appends `; tmux wait-for -S <channel>` so the
 # orchestrator can block on `tmux wait-for <channel>` instead of polling.
@@ -193,7 +196,7 @@ hive_write_worker_script() {
 hive_build_claude_command() {
   local model="$1"
   local system_prompt="$2"
-  local max_budget="${3:-}"
+  local max_turns="${3:-}"
   local task_prompt="${4:-}"
   local signal_channel="${5:-}"
 
@@ -207,8 +210,8 @@ hive_build_claude_command() {
     cmd="$cmd --append-system-prompt \"\$(cat '$prompt_file')\""
   fi
 
-  if [[ -n "$max_budget" ]]; then
-    cmd="$cmd --max-budget-usd '$max_budget'"
+  if [[ -n "$max_turns" ]]; then
+    cmd="$cmd --max-turns '$max_turns'"
   fi
 
   if [[ -n "$task_prompt" ]]; then

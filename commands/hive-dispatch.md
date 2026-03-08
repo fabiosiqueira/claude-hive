@@ -33,8 +33,8 @@ For each batch in the plan, sequentially:
 
 ### 4a. Prepare Workers
 - Create git worktrees for each task via `lib/worktree-manager.sh`
-- Write assignment files (`task-N.assigned.json`) with model, budget, and instructions
-- Set budget limits per model tier: Haiku=$0.50, Sonnet=$2.00, Opus=$5.00
+- Write assignment files (`task-N.assigned.json`) with model, max_turns, and instructions
+- Set turn limits per model tier: Haiku=30, Sonnet=80, Opus=150
 
 ### 4b. Launch Workers
 - Create one tmux pane per task in the session

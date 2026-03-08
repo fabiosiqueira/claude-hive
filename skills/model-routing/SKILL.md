@@ -110,7 +110,7 @@ To estimate batch cost:
 3. Apply model cost rates from the cost table
 4. Sum across all tasks in the batch
 
-Use `--max-budget-usd` flag per worker to cap runaway costs.
+Use `--max-turns` flag per worker to cap runaway execution (Haiku=30, Sonnet=80, Opus=150). Nunca use `--max-budget-usd` — incompatível com Claude Max.
 
 ## Cost Optimization Tips
 
@@ -136,6 +136,6 @@ Use `hive_get_batch_max_model()` from `lib/plan-parser.sh` to determine this aut
 
 - **Cheapest model that works.** Never use Opus for work Haiku can handle. Cost scales 60x.
 - **Escalation is a signal.** Frequent escalation means tasks are under-specified or mis-tagged.
-- **Budget is a hard constraint.** Set `--max-budget-usd` on every worker. No unbounded runs.
+- **Turn limit is a hard constraint.** Set `--max-turns` on every worker. No unbounded runs.
 - **Complexity tags drive routing.** The `[simple]`, `[moderate]`, `[complex]` tags in the plan map directly to model tiers.
 - **Integration workers match the batch ceiling.** They need at least as much capability as the hardest task they are connecting.

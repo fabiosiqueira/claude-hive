@@ -149,12 +149,12 @@ else
   ((FAIL++))
 fi
 
-cmd_with_budget=$(hive_build_claude_command "sonnet" "" "5.00" "do stuff")
-if echo "$cmd_with_budget" | grep -q "\-\-max-budget-usd '5.00'"; then
-  echo "  PASS: command includes budget flag"
+cmd_with_turns=$(hive_build_claude_command "sonnet" "" "80" "do stuff")
+if echo "$cmd_with_turns" | grep -q "\-\-max-turns '80'"; then
+  echo "  PASS: command includes max-turns flag"
   ((PASS++))
 else
-  echo "  FAIL: command missing budget flag"
+  echo "  FAIL: command missing max-turns flag"
   ((FAIL++))
 fi
 
@@ -280,7 +280,7 @@ rm -f "$TMPSCRIPT_PROMPT" "$TASK_PROMPT_FILE" "$SYS_PROMPT_FILE"
 echo ""
 echo "--- hive_write_worker_script — flags do claude (regressão Bug 2.1) ---"
 TMPSCRIPT_FLAGS=$(mktemp /tmp/hive-test-XXXXX.sh)
-hive_write_worker_script "$TMPSCRIPT_FLAGS" "/tmp" "claude-sonnet-4-6" "3.00" "do stuff" "" ""
+hive_write_worker_script "$TMPSCRIPT_FLAGS" "/tmp" "claude-sonnet-4-6" "80" "do stuff" "" ""
 
 if grep -q "\-\-model" "$TMPSCRIPT_FLAGS"; then
   echo "  PASS: script contém --model"
@@ -298,12 +298,20 @@ else
   ((FAIL++))
 fi
 
-if grep -q "\-\-max-budget-usd" "$TMPSCRIPT_FLAGS"; then
-  echo "  PASS: script contém --max-budget-usd"
+if grep -q "\-\-max-turns" "$TMPSCRIPT_FLAGS"; then
+  echo "  PASS: script contém --max-turns"
   ((PASS++))
 else
-  echo "  FAIL: script não contém --max-budget-usd"
+  echo "  FAIL: script não contém --max-turns"
   ((FAIL++))
+fi
+
+if grep -q "\-\-max-budget-usd" "$TMPSCRIPT_FLAGS"; then
+  echo "  FAIL: script contém --max-budget-usd (incompatível com Claude Max!)"
+  ((FAIL++))
+else
+  echo "  PASS: script NÃO contém --max-budget-usd"
+  ((PASS++))
 fi
 
 if grep -q "\-\-budget-tokens" "$TMPSCRIPT_FLAGS"; then
