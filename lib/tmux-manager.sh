@@ -43,12 +43,14 @@ hive_create_worker() {
 # WARNING: Only safe for commands without single quotes, parentheses, or other
 # shell metacharacters. For claude invocations with arbitrary prompts,
 # use hive_write_worker_script + hive_launch_worker_script instead.
+# NOTE: Uses :=worker_name (exact match) to prevent tmux prefix-matching the
+# window name against the session name when both contain hyphens (tmux >= 3.x).
 hive_launch_worker() {
   local session_name="$1"
   local worker_name="$2"
   local command="$3"
 
-  tmux send-keys -t "$session_name:$worker_name" "$command" Enter
+  tmux send-keys -t "$session_name:=$worker_name" "$command" Enter
 }
 
 # Launch a worker using a pre-written script (preferred over hive_launch_worker)
@@ -59,7 +61,7 @@ hive_launch_worker_script() {
   local worker_name="$2"
   local script_path="$3"
 
-  tmux send-keys -t "$session_name:$worker_name" "bash $(printf '%q' "$script_path")" Enter
+  tmux send-keys -t "$session_name:=$worker_name" "bash $(printf '%q' "$script_path")" Enter
 }
 
 # Capture output from a worker window
@@ -69,7 +71,7 @@ hive_capture_output() {
   local worker_name="$2"
   local lines="${3:-50}"
 
-  tmux capture-pane -t "$session_name:$worker_name" -p -S "-$lines"
+  tmux capture-pane -t "$session_name:=$worker_name" -p -S "-$lines"
 }
 
 # Check if a worker window is alive (pane not dead)
@@ -80,7 +82,7 @@ hive_check_worker_alive() {
   local worker_name="$2"
 
   local dead
-  dead=$(tmux list-panes -t "$session_name:$worker_name" -F "#{pane_dead}" 2>/dev/null || echo "1")
+  dead=$(tmux list-panes -t "$session_name:=$worker_name" -F "#{pane_dead}" 2>/dev/null || echo "1")
 
   if [[ "$dead" == "0" ]]; then
     echo "true"
@@ -95,7 +97,7 @@ hive_kill_worker() {
   local session_name="$1"
   local worker_name="$2"
 
-  tmux kill-window -t "$session_name:$worker_name" 2>/dev/null || true
+  tmux kill-window -t "$session_name:=$worker_name" 2>/dev/null || true
 }
 
 # Kill an entire session

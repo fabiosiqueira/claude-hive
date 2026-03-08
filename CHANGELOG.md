@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.2] - 2026-03-08
+
+### Fixed
+- Todas as funções que referenciam windows tmux por nome passam a usar `session:=window_name` (exact match, tmux >= 3.x) — o prefixo `=` evita que o tmux faça prefix-matching e consuma parte do nome do window como extensão do nome da sessão (ex: `hive-20260308-162032:task-6` → `hive-20260308-162032ask-6`)
+
 ## [3.0.1] - 2026-03-08
 
 ### Fixed
