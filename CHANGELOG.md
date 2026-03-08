@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.7] - 2026-03-08
+
+### Added
+- `hive_print_status` em `lib/tmux-manager.sh`: exibe tabela de status ao vivo lendo `assigned.json`, `result.md` e `progress.txt` por task — independente de `tmux capture-pane` (que não funciona com o Claude CLI)
+- Workers instruídos a escrever `task-N.progress.txt` a cada etapa chave (start, testes, implementação, commit) via `agents/worker.md` e template Step 5 de `dispatching-workers/SKILL.md`
+- 8 novos testes para `hive_print_status` em `tests/test-tmux-manager.sh`
+
+### Changed
+- Step 4c de `hive-dispatch.md`: pseudocódigo inline de `hive_print_status` substituído por chamada à função real da lib; monitor em background atualiza a cada 15s (era 10s inline)
+
 ## [1.0.6] - 2026-03-08
 
 ### Changed

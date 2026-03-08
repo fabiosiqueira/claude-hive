@@ -43,43 +43,28 @@ For each batch in the plan, sequentially:
 
 ### 4c. Monitor Progress
 
-After launching all workers, show an initial status table, then start a background monitor that refreshes every 10 seconds while waiting for all signals:
+After launching all workers, show an initial status table, then start a background monitor that refreshes every 15 seconds while waiting for all signals:
 
 ```bash
-# Print live status table
-hive_print_status() {
-  local run_dir="$1"; shift; local tasks=("$@")
-  echo ""
-  echo "┌─ Run: $RUN_ID | Batch: $BATCH | $(date +%H:%M:%S) ─────────────────"
-  printf "│ %-6s %-10s %-10s %s\n" "Task" "Model" "Status" "Output (last line)"
-  echo "│ ──────────────────────────────────────────────────────────────"
-  for N in "${tasks[@]}"; do
-    local result="$run_dir/tasks/task-$N.result.md"
-    local status="running"
-    if grep -q "HIVE_TASK_COMPLETE" "$result" 2>/dev/null; then status="✓ done"
-    elif grep -q "HIVE_TASK_ERROR" "$result" 2>/dev/null; then status="✗ error"; fi
-    local last
-    last=$(tmux capture-pane -t "$SESSION:=task-$N" -p -S -3 2>/dev/null | grep -v '^$' | tail -1 | cut -c1-50 || echo "")
-    local model; model=$(jq -r '.model' "$run_dir/tasks/task-$N.assigned.json" 2>/dev/null || echo "?")
-    printf "│ %-6s %-10s %-10s %s\n" "$N" "$model" "$status" "$last"
-  done
-  echo "└─────────────────────────────────────────────────────────────────"
-}
+source lib/tmux-manager.sh
 
-# Background monitor — prints status every 10s until killed
+# Initial status display
+hive_print_status "$SESSION" "$RUN_DIR" "$BATCH_TASK_NUMBERS"
+
+# Background monitor — refreshes every 15s while waiting
 (while true; do
-  hive_print_status "$RUN_DIR" "${BATCH_TASKS[@]}"
-  sleep 10
+  sleep 15
+  hive_print_status "$SESSION" "$RUN_DIR" "$BATCH_TASK_NUMBERS"
 done) &
 MONITOR_PID=$!
 
-# Event-driven wait — returns immediately when all workers signal done
+# Event-driven wait — returns when all workers signal done
 hive_wait_for_all_workers "$ALL_SIGNALS"
 
-# Stop monitor and show final status
+# Stop monitor, show final state
 kill "$MONITOR_PID" 2>/dev/null
-hive_print_status "$RUN_DIR" "${BATCH_TASKS[@]}"
-echo "✓ Batch $BATCH complete"
+hive_print_status "$SESSION" "$RUN_DIR" "$BATCH_TASK_NUMBERS"
+echo "✓ Batch complete"
 ```
 
 Update `status.json` as tasks complete.

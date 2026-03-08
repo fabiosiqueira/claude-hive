@@ -382,6 +382,115 @@ assert_eq "hive_check_worker_alive retorna true para worker hifenado" "true" "$a
 hive_kill_session "$SESSION_HIFENADO"
 
 echo ""
+echo "--- hive_print_status — task pendente (sem assigned.json) ---"
+TMP_RUN=$(mktemp -d)
+mkdir -p "$TMP_RUN/tasks"
+
+status_output=$(hive_print_status "" "$TMP_RUN" "9")
+if echo "$status_output" | grep -q "pending"; then
+  echo "  PASS: task sem assigned.json exibe 'pending'"
+  ((PASS++))
+else
+  echo "  FAIL: task sem assigned.json deveria exibir 'pending'"
+  ((FAIL++))
+fi
+
+if echo "$status_output" | grep -q -- "--"; then
+  echo "  PASS: task sem assigned.json exibe '--' em elapsed"
+  ((PASS++))
+else
+  echo "  FAIL: task sem assigned.json deveria exibir '--' em elapsed"
+  ((FAIL++))
+fi
+
+echo ""
+echo "--- hive_print_status — task running (com assigned.json, sem result) ---"
+echo '{"model":"claude-sonnet-4-6"}' > "$TMP_RUN/tasks/task-5.assigned.json"
+status_running=$(hive_print_status "" "$TMP_RUN" "5")
+
+if echo "$status_running" | grep -q "claude-sonnet-4-6"; then
+  echo "  PASS: exibe model name do assigned.json"
+  ((PASS++))
+else
+  echo "  FAIL: deveria exibir model name"
+  ((FAIL++))
+fi
+
+if echo "$status_running" | grep -q "running"; then
+  echo "  PASS: task com assigned.json sem result exibe 'running'"
+  ((PASS++))
+else
+  echo "  FAIL: deveria exibir 'running'"
+  ((FAIL++))
+fi
+
+if echo "$status_running" | grep -qE "[0-9]+m[0-9]+s"; then
+  echo "  PASS: elapsed no formato NmNs"
+  ((PASS++))
+else
+  echo "  FAIL: elapsed deveria estar no formato NmNs"
+  ((FAIL++))
+fi
+
+echo ""
+echo "--- hive_print_status — task completa (HIVE_TASK_COMPLETE) ---"
+echo '{"model":"claude-haiku-4-5"}' > "$TMP_RUN/tasks/task-6.assigned.json"
+echo "## Summary" > "$TMP_RUN/tasks/task-6.result.md"
+echo "HIVE_TASK_COMPLETE" >> "$TMP_RUN/tasks/task-6.result.md"
+status_done=$(hive_print_status "" "$TMP_RUN" "6")
+
+if echo "$status_done" | grep -q "✓ done"; then
+  echo "  PASS: task com HIVE_TASK_COMPLETE exibe '✓ done'"
+  ((PASS++))
+else
+  echo "  FAIL: deveria exibir '✓ done'"
+  ((FAIL++))
+fi
+
+echo ""
+echo "--- hive_print_status — task com erro (HIVE_TASK_ERROR) ---"
+echo '{"model":"claude-opus-4-6"}' > "$TMP_RUN/tasks/task-7.assigned.json"
+echo "## Error" > "$TMP_RUN/tasks/task-7.result.md"
+echo "HIVE_TASK_ERROR" >> "$TMP_RUN/tasks/task-7.result.md"
+status_err=$(hive_print_status "" "$TMP_RUN" "7")
+
+if echo "$status_err" | grep -q "✗ error"; then
+  echo "  PASS: task com HIVE_TASK_ERROR exibe '✗ error'"
+  ((PASS++))
+else
+  echo "  FAIL: deveria exibir '✗ error'"
+  ((FAIL++))
+fi
+
+echo ""
+echo "--- hive_print_status — progress file ---"
+echo '{"model":"claude-sonnet-4-6"}' > "$TMP_RUN/tasks/task-8.assigned.json"
+echo "[10:00:00] Reading CLAUDE.md" > "$TMP_RUN/tasks/task-8.progress.txt"
+echo "[10:01:00] Writing failing tests" >> "$TMP_RUN/tasks/task-8.progress.txt"
+status_prog=$(hive_print_status "" "$TMP_RUN" "8")
+
+if echo "$status_prog" | grep -q "Writing failing tests"; then
+  echo "  PASS: exibe última linha do progress.txt"
+  ((PASS++))
+else
+  echo "  FAIL: deveria exibir última linha do progress.txt"
+  ((FAIL++))
+fi
+
+# Task sem progress.txt não deve quebrar
+echo '{"model":"claude-haiku-4-5"}' > "$TMP_RUN/tasks/task-10.assigned.json"
+status_noprog=$(hive_print_status "" "$TMP_RUN" "10" 2>&1)
+if [[ $? -eq 0 ]]; then
+  echo "  PASS: sem progress.txt não quebra a função"
+  ((PASS++))
+else
+  echo "  FAIL: sem progress.txt causou erro"
+  ((FAIL++))
+fi
+
+rm -rf "$TMP_RUN"
+
+echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 
 if [[ $FAIL -gt 0 ]]; then

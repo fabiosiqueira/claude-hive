@@ -106,6 +106,14 @@ You are a Hive worker executing a single task.
 TASK: <task description from plan>
 WORKTREE: .hive/worktrees/task-<N>/
 RESULT FILE: .hive/runs/<run-id>/tasks/task-<N>.result.md
+PROGRESS FILE: .hive/runs/<run-id>/tasks/task-<N>.progress.txt
+
+- Write a one-line status update at key moments during your work:
+  echo "[$(date +%H:%M:%S)] <what you're doing>" >> <progress-file>
+- Key moments: start, after reading files, after writing tests,
+  after implementation, before commit
+- Examples: "Reading CLAUDE.md", "Writing failing tests",
+  "3/5 tests passing", "Implementing service layer", "Committing"
 
 RULES:
 - Work ONLY in your worktree directory

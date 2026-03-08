@@ -245,6 +245,50 @@ hive_signal_channel() {
   echo "hive-${run_id}-task-${task_number}-done"
 }
 
+# Print live status table for all tasks in a batch
+# Args: session_name, run_dir, task_numbers (space-separated)
+hive_print_status() {
+  local session_name="$1"
+  local run_dir="$2"
+  local task_numbers="$3"
+
+  echo ""
+  echo "┌── Status $(date +%H:%M:%S) ────────────────────────────────────────────"
+  printf "│ %-6s %-22s %-12s %-8s %s\n" "Task" "Model" "Status" "Elapsed" "Progress"
+  echo "│ ─────────────────────────────────────────────────────────────────────"
+
+  for N in $task_numbers; do
+    local assigned="$run_dir/tasks/task-$N.assigned.json"
+    local result="$run_dir/tasks/task-$N.result.md"
+    local progress="$run_dir/tasks/task-$N.progress.txt"
+
+    local model="?"
+    [[ -f "$assigned" ]] && model=$(jq -r '.model // "?"' "$assigned" 2>/dev/null || echo "?")
+
+    local task_status="pending"
+    local elapsed="--"
+    if [[ -f "$assigned" ]]; then
+      task_status="running"
+      local start now secs
+      start=$(stat -f %m "$assigned" 2>/dev/null || stat -c %Y "$assigned" 2>/dev/null || echo 0)
+      now=$(date +%s)
+      secs=$(( now - start ))
+      elapsed="$(( secs / 60 ))m$(( secs % 60 ))s"
+    fi
+    grep -q "HIVE_TASK_COMPLETE" "$result" 2>/dev/null && task_status="✓ done"
+    grep -q "HIVE_TASK_ERROR"    "$result" 2>/dev/null && task_status="✗ error"
+
+    # NOTE: hive_capture_output is useless here — Claude CLI buffers tmux output
+    # until completion. Progress file is the only reliable source of live status.
+    local last_progress=""
+    [[ -f "$progress" ]] && last_progress=$(tail -1 "$progress" 2>/dev/null | cut -c1-45 || echo "")
+
+    printf "│ %-6s %-22s %-12s %-8s %s\n" "$N" "$model" "$task_status" "$elapsed" "$last_progress"
+  done
+
+  echo "└──────────────────────────────────────────────────────────────────────"
+}
+
 # Wait for all workers in a list to complete
 # Args: signal_channels (space-separated list, or pass as positional args)
 # Blocks until ALL channels have been signaled

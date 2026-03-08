@@ -30,6 +30,9 @@ Your task details are provided in the prompt that spawned you:
 
 Before starting, read the context files in `.hive/runs/<run-id>/context/` to understand project conventions, coding standards, and architectural decisions.
 
+As you work, write one-line progress updates to the progress file path provided in your task prompt (task-N.progress.txt). Write at key moments: start, after reading files, after tests, after implementation, before commit.
+Format: `echo "[$(date +%H:%M:%S)] <status>" >> <progress-file>`
+
 ## Execution Rules
 
 ### Work Boundary
