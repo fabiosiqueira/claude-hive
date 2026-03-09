@@ -324,15 +324,16 @@ fi
 rm -f "$TMPSCRIPT_FLAGS"
 
 echo ""
-echo "--- hive_write_worker_script — signal channel ---"
+echo "--- hive_write_worker_script — signal channel removido (v1.1.0) ---"
+# signal_channel foi removido em v1.1.0 — 7º arg é ignorado, sem trap/wait-for
 TMPSCRIPT_SIG=$(mktemp /tmp/hive-test-XXXXX.sh)
 hive_write_worker_script "$TMPSCRIPT_SIG" "/tmp" "claude-haiku-4-5" "" "task" "" "hive-abc-task-1-done"
-if grep -q "trap" "$TMPSCRIPT_SIG" && grep -q "wait-for" "$TMPSCRIPT_SIG" && grep -q "hive-abc-task-1-done" "$TMPSCRIPT_SIG"; then
-  echo "  PASS: script com signal contém trap com wait-for <channel>"
-  ((PASS++))
-else
-  echo "  FAIL: script com signal não contém trap wait-for correto"
+if grep -q "wait-for" "$TMPSCRIPT_SIG"; then
+  echo "  FAIL: script não deve conter wait-for (signal_channel removido em v1.1.0)"
   ((FAIL++))
+else
+  echo "  PASS: 7º arg ignorado — script não contém wait-for (v1.1.0)"
+  ((PASS++))
 fi
 rm -f "$TMPSCRIPT_SIG"
 
@@ -497,6 +498,134 @@ else
 fi
 
 rm -rf "$TMP_RUN"
+
+echo ""
+echo "--- hive_wait_for_result ---"
+TMP_RESULT_DIR=$(mktemp -d)
+
+# Arquivo sem marker → timeout (usando timeout curto para o teste ser rápido)
+RESULT_NO_MARKER="$TMP_RESULT_DIR/no-marker.result.md"
+echo "## Some content without marker" > "$RESULT_NO_MARKER"
+if hive_wait_for_result "$RESULT_NO_MARKER" 1 1; then
+  echo "  FAIL: deveria retornar 1 (timeout) quando marker ausente"
+  ((FAIL++))
+else
+  echo "  PASS: retorna 1 (timeout) quando marker ausente"
+  ((PASS++))
+fi
+
+# Arquivo com HIVE_TASK_COMPLETE → retorna 0
+RESULT_COMPLETE="$TMP_RESULT_DIR/complete.result.md"
+echo "## Summary" > "$RESULT_COMPLETE"
+echo "HIVE_TASK_COMPLETE" >> "$RESULT_COMPLETE"
+if hive_wait_for_result "$RESULT_COMPLETE" 5 1; then
+  echo "  PASS: retorna 0 quando HIVE_TASK_COMPLETE presente"
+  ((PASS++))
+else
+  echo "  FAIL: deveria retornar 0 com HIVE_TASK_COMPLETE"
+  ((FAIL++))
+fi
+
+# Arquivo com HIVE_TASK_ERROR → retorna 0
+RESULT_ERROR="$TMP_RESULT_DIR/error.result.md"
+echo "HIVE_TASK_ERROR" > "$RESULT_ERROR"
+if hive_wait_for_result "$RESULT_ERROR" 5 1; then
+  echo "  PASS: retorna 0 quando HIVE_TASK_ERROR presente"
+  ((PASS++))
+else
+  echo "  FAIL: deveria retornar 0 com HIVE_TASK_ERROR"
+  ((FAIL++))
+fi
+
+# Arquivo com HIVE_TASK_CONTEXT_HEAVY → retorna 0
+RESULT_CTX="$TMP_RESULT_DIR/ctx.result.md"
+echo "HIVE_TASK_CONTEXT_HEAVY" > "$RESULT_CTX"
+if hive_wait_for_result "$RESULT_CTX" 5 1; then
+  echo "  PASS: retorna 0 quando HIVE_TASK_CONTEXT_HEAVY presente"
+  ((PASS++))
+else
+  echo "  FAIL: deveria retornar 0 com HIVE_TASK_CONTEXT_HEAVY"
+  ((FAIL++))
+fi
+
+echo ""
+echo "--- hive_get_task_status ---"
+TMP_STATUS_DIR=$(mktemp -d)
+mkdir -p "$TMP_STATUS_DIR/tasks"
+
+# Arquivo inexistente → "running"
+assert_eq "arquivo inexistente → running" \
+  "running" \
+  "$(hive_get_task_status "$TMP_STATUS_DIR/tasks/task-99.result.md")"
+
+# Arquivo com HIVE_TASK_COMPLETE → "complete"
+echo "HIVE_TASK_COMPLETE" > "$TMP_STATUS_DIR/tasks/task-1.result.md"
+assert_eq "HIVE_TASK_COMPLETE → complete" \
+  "complete" \
+  "$(hive_get_task_status "$TMP_STATUS_DIR/tasks/task-1.result.md")"
+
+# Arquivo com HIVE_TASK_ERROR → "error"
+echo "HIVE_TASK_ERROR" > "$TMP_STATUS_DIR/tasks/task-2.result.md"
+assert_eq "HIVE_TASK_ERROR → error" \
+  "error" \
+  "$(hive_get_task_status "$TMP_STATUS_DIR/tasks/task-2.result.md")"
+
+# Arquivo com HIVE_TASK_CONTEXT_HEAVY → "context_heavy"
+echo "HIVE_TASK_CONTEXT_HEAVY" > "$TMP_STATUS_DIR/tasks/task-3.result.md"
+assert_eq "HIVE_TASK_CONTEXT_HEAVY → context_heavy" \
+  "context_heavy" \
+  "$(hive_get_task_status "$TMP_STATUS_DIR/tasks/task-3.result.md")"
+
+# Arquivo existente sem marker → "running"
+echo "## In progress content" > "$TMP_STATUS_DIR/tasks/task-4.result.md"
+assert_eq "arquivo sem marker → running" \
+  "running" \
+  "$(hive_get_task_status "$TMP_STATUS_DIR/tasks/task-4.result.md")"
+
+rm -rf "$TMP_STATUS_DIR"
+
+echo ""
+echo "--- hive_get_task_progress ---"
+TMP_PROG_DIR=$(mktemp -d)
+mkdir -p "$TMP_PROG_DIR/tasks"
+
+# Arquivo inexistente → string vazia
+progress_empty=$(hive_get_task_progress "$TMP_PROG_DIR" "99")
+assert_eq "arquivo inexistente → string vazia" "" "$progress_empty"
+
+# Arquivo com uma linha com timestamp → retorna linha sem timestamp
+echo "[14:32:15] Writing tests" > "$TMP_PROG_DIR/tasks/task-1.progress.txt"
+progress_single=$(hive_get_task_progress "$TMP_PROG_DIR" "1")
+assert_eq "linha com timestamp → sem timestamp" "Writing tests" "$progress_single"
+
+# Arquivo com múltiplas linhas → retorna a última sem timestamp
+echo "[14:30:00] Reading CLAUDE.md" > "$TMP_PROG_DIR/tasks/task-2.progress.txt"
+echo "[14:31:00] Writing failing tests" >> "$TMP_PROG_DIR/tasks/task-2.progress.txt"
+echo "[14:32:15] Implementing service layer" >> "$TMP_PROG_DIR/tasks/task-2.progress.txt"
+progress_last=$(hive_get_task_progress "$TMP_PROG_DIR" "2")
+assert_eq "múltiplas linhas → última sem timestamp" "Implementing service layer" "$progress_last"
+
+rm -rf "$TMP_PROG_DIR" "$TMP_RESULT_DIR"
+
+echo ""
+echo "--- hive_write_worker_script — sem signal_channel (v1.1.0) ---"
+TMPSCRIPT_V110=$(mktemp /tmp/hive-test-XXXXX.sh)
+hive_write_worker_script "$TMPSCRIPT_V110" "/tmp" "claude-haiku-4-5" "30" "task prompt" ""
+if grep -q "wait-for" "$TMPSCRIPT_V110"; then
+  echo "  FAIL: script não deve conter wait-for (signal_channel removido)"
+  ((FAIL++))
+else
+  echo "  PASS: script não contém wait-for (signal_channel removido em v1.1.0)"
+  ((PASS++))
+fi
+if grep -q "trap" "$TMPSCRIPT_V110"; then
+  echo "  FAIL: script não deve conter trap (removido com signal_channel)"
+  ((FAIL++))
+else
+  echo "  PASS: script não contém trap (removido com signal_channel)"
+  ((PASS++))
+fi
+rm -f "$TMPSCRIPT_V110"
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="

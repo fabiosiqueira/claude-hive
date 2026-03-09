@@ -43,28 +43,25 @@ For each batch in the plan, sequentially:
 
 ### 4c. Monitor Progress
 
-After launching all workers, show an initial status table, then start a background monitor that refreshes every 15 seconds while waiting for all signals:
+After launching all workers, monitor via TodoWrite + file polling — no `tmux wait-for`, no race conditions:
 
 ```bash
 source lib/tmux-manager.sh
 
-# Initial status display
-hive_print_status "$SESSION" "$RUN_DIR" "$BATCH_TASK_NUMBERS"
+# 1. Create initial TodoWrite checklist (all tasks in_progress)
+# Call TodoWrite with items like:
+#   { id: "task-N", content: "Task N · [Model] description", status: "in_progress" }
 
-# Background monitor — refreshes every 15s while waiting
-(while true; do
-  sleep 15
-  hive_print_status "$SESSION" "$RUN_DIR" "$BATCH_TASK_NUMBERS"
-done) &
-MONITOR_PID=$!
+# 2. Poll until all tasks reach terminal status
+# Loop:
+#   For each task N:
+#     STATUS=$(hive_get_task_status ".hive/runs/$RUN_ID/tasks/task-N.result.md")
+#     If "running": PROGRESS=$(hive_get_task_progress ".hive/runs/$RUN_ID" "$N")
+#   Update TodoWrite items with current status
+#   If all tasks terminal → break
+#   sleep 10
 
-# Event-driven wait — returns when all workers signal done
-hive_wait_for_all_workers "$ALL_SIGNALS"
-
-# Stop monitor, show final state
-kill "$MONITOR_PID" 2>/dev/null
-hive_print_status "$SESSION" "$RUN_DIR" "$BATCH_TASK_NUMBERS"
-echo "✓ Batch complete"
+# See skill dispatching-workers Step 5 for the full TodoWrite loop pattern.
 ```
 
 Update `status.json` as tasks complete.

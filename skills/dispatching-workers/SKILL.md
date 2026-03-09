@@ -63,7 +63,6 @@ Workers are launched via wrapper scripts — **never** by sending the full claud
 source lib/tmux-manager.sh
 
 SCRIPT_PATH=".hive/runs/$RUN_ID/tasks/task-${N}.sh"
-SIGNAL=$(hive_signal_channel "$RUN_ID" "$N")
 
 hive_write_worker_script \
   "$SCRIPT_PATH" \
@@ -71,8 +70,7 @@ hive_write_worker_script \
   "<model-id>" \
   "<max-turns>" \
   "$TASK_PROMPT" \
-  "$SYSTEM_PROMPT" \
-  "$SIGNAL"
+  "$SYSTEM_PROMPT"
 
 hive_create_worker "hive-$RUN_ID" "task-$N" ".hive/worktrees/task-$N"
 hive_launch_worker_script "hive-$RUN_ID" "task-$N" "$SCRIPT_PATH"
@@ -82,21 +80,47 @@ Where:
 - `<model-id>` is `claude-haiku-4-5`, `claude-sonnet-4-6`, or `claude-opus-4-6`
 - `<max-turns>` limits worker turns to prevent infinite loops: Haiku=30, Sonnet=80, Opus=150 (adjustable). Use `--max-turns`, NOT `--max-budget-usd` — budget flags require API billing and break with Claude Max subscription.
 - `$TASK_PROMPT` and `$SYSTEM_PROMPT` are bash strings — any content is safe (written to files by `hive_write_worker_script`)
-- `$SIGNAL` is the tmux wait-for channel — **always pass it**. Omitting it disables event-driven sync and forces polling (see Gotcha #5)
+- `signal_channel` was removed in v1.1.0 — **do not pass it** (see Gotcha #5)
 
 `hive_write_worker_script` writes the prompts to `task-N.task-prompt.txt` / `task-N.system-prompt.txt` alongside the script, and generates a wrapper that reads them at runtime. Only `bash /path/to/task-N.sh` is sent via `send-keys` — no metacharacters.
 
-After launching all workers in the batch, the orchestrator waits with no polling:
+### Step 5: Monitor com TodoWrite
 
-```bash
-# Collect all signals for the batch
-ALL_SIGNALS="$SIGNAL_1 $SIGNAL_2 $SIGNAL_3"
+Após lançar todos os workers do batch:
 
-# Block here — returns immediately when every worker signals done
-hive_wait_for_all_workers "$ALL_SIGNALS"
+**1. Crie o checklist inicial via TodoWrite** com todos os tasks como `in_progress`:
+
+```
+TodoWrite items:
+- id: "task-1", content: "Task 1 · [Sonnet] Implement auth service", status: "in_progress"
+- id: "task-2", content: "Task 2 · [Haiku] Write schema migration", status: "in_progress"
+- id: "task-3", content: "Task 3 · [Opus] Design caching strategy", status: "in_progress"
 ```
 
-### Step 5: Worker Instruction Template
+**2. Loop de polling até todos os tasks terem status terminal:**
+
+```
+Para cada iteração:
+  a. Para cada task N no batch:
+     - STATUS = Bash: hive_get_task_status .hive/runs/$RUN_ID/tasks/task-N.result.md
+     - Se "running": PROGRESS = Bash: hive_get_task_progress .hive/runs/$RUN_ID N
+
+  b. Chame TodoWrite com status atualizado:
+     - "complete"      → status: "completed"
+     - "error"         → status: "completed", content: "Task N · [model] desc — FAILED"
+     - "context_heavy" → status: "completed", content: "Task N · [model] desc — CONTEXT_OVERLOAD"
+     - "running"       → status: "in_progress", content: "Task N · [model] desc — $PROGRESS"
+
+  c. Se todos os tasks têm status terminal (complete/error/context_heavy) → sair do loop
+
+  d. Bash: sleep 10
+```
+
+**3. Todos os tasks concluídos → avançar para merge**
+
+Este padrão elimina `tmux wait-for` e resolve o race condition: o arquivo de resultado persiste no filesystem independentemente de quando o orchestrator verifica.
+
+### Step 6: Worker Instruction Template
 
 The system prompt appended to each worker includes:
 
@@ -267,25 +291,25 @@ hive_write_worker_script "$SCRIPT_PATH" "$(pwd)/.hive/worktrees/task-$N" ...
 hive_write_worker_script "$SCRIPT_PATH" ".hive/worktrees/task-$N" ...
 ```
 
-### 5. Sempre passe signal_channel para hive_write_worker_script (Bug #3)
+### 5. signal_channel foi removido — não passe (v1.1.0)
 
-`signal_channel` é o **7º argumento** de `hive_write_worker_script` e parece opcional — mas omiti-lo quebra o mecanismo event-driven inteiro.
+`signal_channel` era o **7º argumento** de `hive_write_worker_script`, mas foi removido em v1.1.0. O mecanismo `tmux wait-for` tinha um race condition: se o worker sinalizava antes do orchestrator chamar `wait-for`, o sinal sumia e o orchestrator travava indefinidamente.
 
-Sem `signal_channel`, o worker não executa `tmux wait-for -S <channel>` ao terminar. Isso significa que `hive_wait_for_all_workers` nunca acorda — forçando o orquestrador a reinventar um loop de polling manual com `sleep`, que é exatamente o anti-padrão que essa lib foi criada para eliminar.
+O novo padrão usa file polling via `hive_get_task_status` + TodoWrite (Step 5). Não há sinal a perder — o arquivo de resultado persiste no filesystem independentemente da ordem de eventos.
 
 ```bash
-# Errado — signal_channel omitido → orquestrador cai em polling:
-hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$MAX_TURNS" "$PROMPT" "$SYSPROMPT" ""
-
-# Correto — sempre gerar e passar o signal channel:
+# Errado — 7 args com signal_channel (removido em v1.1.0):
 SIGNAL=$(hive_signal_channel "$RUN_ID" "$N")
 hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$MAX_TURNS" "$PROMPT" "$SYSPROMPT" "$SIGNAL"
 
-# Orquestrador bloqueia sem polling — acorda imediatamente quando o worker terminar:
-hive_wait_for_all_workers "$SIGNAL_1 $SIGNAL_2 $SIGNAL_3"
+# Correto — 6 args sem signal_channel:
+hive_write_worker_script "$SCRIPT_PATH" "$WORKTREE" "$MODEL" "$MAX_TURNS" "$PROMPT" "$SYSPROMPT"
+
+# Orchestrator monitora via TodoWrite + polling (Step 5):
+STATUS=$(hive_get_task_status ".hive/runs/$RUN_ID/tasks/task-$N.result.md")
 ```
 
-**Regra:** se você se pegar escrevendo `sleep 30` ou um loop de polling para verificar result files, isso é sinal de que `signal_channel` foi omitido. Corrija na origem.
+**Regra:** não use `hive_signal_channel`, `hive_wait_for_worker`, nem `hive_wait_for_all_workers` — todas estão deprecated. Use o loop TodoWrite do Step 5.
 
 ## Key Principles
 

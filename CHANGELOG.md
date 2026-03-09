@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0] - 2026-03-08
+
+### Changed
+- **`lib/tmux-manager.sh`**: substituído `tmux wait-for` por file polling — elimina race condition onde sinal era perdido se o worker terminava antes do orchestrator chamar `wait-for`
+- **`hive_write_worker_script`**: removido 7º parâmetro `signal_channel`; workers não mais executam `tmux wait-for -S` ao terminar; scripts gerados não contêm `trap`
+- **`skills/dispatching-workers/SKILL.md`**: Step 4 simplificado (6 args, sem SIGNAL); novo Step 5 com loop TodoWrite + `hive_get_task_status` polling; Gotcha #5 atualizado
+- **`commands/hive-dispatch.md`**: Step 4c substituído por padrão TodoWrite + file polling
+
+### Added
+- **`hive_wait_for_result`**: polling de result file com timeout — imune ao race condition do `tmux wait-for`
+- **`hive_get_task_status`**: lê result file e retorna `complete` | `error` | `context_heavy` | `running`
+- **`hive_get_task_progress`**: retorna última linha do progress file sem timestamp `[HH:MM:SS]`
+- 13 novos testes em `tests/test-tmux-manager.sh` cobrindo as 3 novas funções e o comportamento v1.1.0
+
+### Deprecated
+- `hive_signal_channel`, `hive_wait_for_worker`, `hive_wait_for_all_workers` — mantidas no arquivo com aviso `# DEPRECATED (v1.1.0)`
+
 ## [1.0.10] - 2026-03-08
 
 ### Added

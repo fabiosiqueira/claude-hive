@@ -114,11 +114,12 @@ hive_kill_session() {
 # Prompt files are written alongside the script with .task-prompt.txt /
 # .system-prompt.txt suffixes. Use hive_launch_worker_script to run the script.
 # Args: script_path, worktree_path, model, max_turns,
-#       task_prompt (string), system_prompt (string, optional),
-#       signal_channel (optional)
+#       task_prompt (string), system_prompt (string, optional)
 # max_turns: limits worker turns to prevent infinite loops (works with all plans,
 #            including Claude Max subscription — unlike --max-budget-usd which
 #            requires API billing). Defaults: Haiku=30, Sonnet=80, Opus=150.
+# NOTE: signal_channel (7th arg) was removed in v1.1.0. Workers no longer use
+# tmux wait-for. Orchestrator monitors via file polling (hive_get_task_status).
 hive_write_worker_script() {
   local script_path="$1"
   local worktree_path="$2"
@@ -126,7 +127,6 @@ hive_write_worker_script() {
   local max_turns="${4:-}"
   local task_prompt="${5:-}"
   local system_prompt="${6:-}"
-  local signal_channel="${7:-}"
 
   local task_prompt_file="${script_path%.sh}.task-prompt.txt"
   local system_prompt_file="${script_path%.sh}.system-prompt.txt"
@@ -147,13 +147,6 @@ hive_write_worker_script() {
   {
     printf '#!/usr/bin/env bash\n'
     printf 'set -uo pipefail\n'
-
-    # Signal via trap so it fires even if claude exits with non-zero (turns
-    # exhausted, timeout, or any non-zero exit). Without this, set -e would
-    # abort the script before reaching the explicit tmux wait-for -S at the end.
-    if [[ -n "$signal_channel" ]]; then
-      printf 'trap %q EXIT\n' "tmux wait-for -S $signal_channel"
-    fi
 
     printf 'cd %q\n\n' "$abs_worktree_path"
 
@@ -183,6 +176,67 @@ hive_write_worker_script() {
   } > "$script_path"
 
   chmod +x "$script_path"
+}
+
+# Aguarda result file conter marker terminal — polling sem race condition.
+# Substitui tmux wait-for: não há sinal que pode ser perdido, apenas polling de arquivo.
+# Args: result_file, timeout_seconds (default 3600), interval_seconds (default 5)
+# Returns: 0 se encontrou marker terminal, 1 se timeout
+hive_wait_for_result() {
+  local result_file="$1"
+  local timeout="${2:-3600}"
+  local interval="${3:-5}"
+  local elapsed=0
+
+  while [[ $elapsed -lt $timeout ]]; do
+    if grep -qE "HIVE_TASK_COMPLETE|HIVE_TASK_ERROR|HIVE_TASK_CONTEXT_HEAVY" "$result_file" 2>/dev/null; then
+      return 0
+    fi
+    sleep "$interval"
+    elapsed=$(( elapsed + interval ))
+  done
+  return 1
+}
+
+# Retorna status terminal de uma task lendo o result file.
+# Args: result_file
+# Returns (stdout): "complete" | "error" | "context_heavy" | "running"
+hive_get_task_status() {
+  local result_file="$1"
+
+  if [[ ! -f "$result_file" ]]; then
+    echo "running"
+    return 0
+  fi
+
+  if grep -q "HIVE_TASK_COMPLETE" "$result_file" 2>/dev/null; then
+    echo "complete"
+  elif grep -q "HIVE_TASK_ERROR" "$result_file" 2>/dev/null; then
+    echo "error"
+  elif grep -q "HIVE_TASK_CONTEXT_HEAVY" "$result_file" 2>/dev/null; then
+    echo "context_heavy"
+  else
+    echo "running"
+  fi
+}
+
+# Retorna última linha do progress file sem o timestamp [HH:MM:SS].
+# Args: run_dir, task_number
+# Returns (stdout): string de progresso ou vazio se arquivo não existe
+hive_get_task_progress() {
+  local run_dir="$1"
+  local task_number="$2"
+  local progress_file="$run_dir/tasks/task-$task_number.progress.txt"
+
+  if [[ ! -f "$progress_file" ]]; then
+    echo ""
+    return 0
+  fi
+
+  local last_line
+  last_line=$(tail -1 "$progress_file" 2>/dev/null || echo "")
+  # Strip timestamp prefix [HH:MM:SS] if present
+  echo "$last_line" | sed 's/^\[[0-9:]*\] //'
 }
 
 # Build the claude command for a worker
@@ -229,18 +283,18 @@ hive_build_claude_command() {
   echo "$cmd"
 }
 
-# Wait for a worker to signal completion (event-driven, no polling)
-# Args: signal_channel
-# Blocks until the worker signals via `tmux wait-for -S <channel>`
+# DEPRECATED (v1.1.0): Use hive_wait_for_result instead.
+# tmux wait-for has a race condition: if the worker signals before the
+# orchestrator calls wait-for, the signal is lost and the orchestrator hangs.
+# hive_wait_for_result uses file polling which is immune to this race.
 hive_wait_for_worker() {
   local signal_channel="$1"
 
   tmux wait-for "$signal_channel"
 }
 
-# Build a standard signal channel name for a task
-# Args: run_id, task_number
-# Returns: channel name string
+# DEPRECATED (v1.1.0): signal_channel was removed from hive_write_worker_script.
+# Workers no longer signal via tmux. Orchestrator polls via hive_get_task_status.
 hive_signal_channel() {
   local run_id="$1"
   local task_number="$2"
@@ -292,9 +346,8 @@ hive_print_status() {
   echo "└──────────────────────────────────────────────────────────────────────"
 }
 
-# Wait for all workers in a list to complete
-# Args: signal_channels (space-separated list, or pass as positional args)
-# Blocks until ALL channels have been signaled
+# DEPRECATED (v1.1.0): Use hive_get_task_status polling loop in the orchestrator instead.
+# See skills/dispatching-workers/SKILL.md Step 5 for the TodoWrite + polling pattern.
 hive_wait_for_all_workers() {
   local channels="$1"
   local channel
