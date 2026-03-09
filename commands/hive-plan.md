@@ -65,7 +65,7 @@ Wait for explicit approval before saving.
 
 Save the approved plan to `docs/plans/YYYY-MM-DD-<feature>.md`. If roadmap ingestion happened in Step 2, delete `docs/roadmap.md` now.
 
-Do NOT wait for the user to type `/hive-dispatch`. Proceed immediately to dispatch by invoking the `/hive-dispatch` command now.
+Do NOT wait for the user to type `/hive-dispatch`. Proceed immediately by reading `commands/hive-dispatch.md` and following its instructions.
 
 ## Gate
 

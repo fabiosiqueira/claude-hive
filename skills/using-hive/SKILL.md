@@ -19,6 +19,7 @@ This skill is loaded on session start. It provides orientation for every Hive se
 | `/hive-plan` | Create a structured implementation plan with model tags and dependency graph |
 | `/hive-dispatch` | Dispatch tmux workers to execute a plan in parallel batches |
 | `/hive-status` | Check current run status — worker progress, blocked tasks, batch completion |
+| `/hive-cleanup` | Kill all active workers and tmux sessions — use when a run is interrupted or workers go orphan |
 | `/design-system` | Generate design system spec with tokens, components, and layouts |
 | `/validate-ux` | Run Playwright-based UX tests against implemented UI |
 | `/security-review` | OWASP-focused security audit of the codebase |

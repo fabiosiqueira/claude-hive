@@ -99,10 +99,10 @@ Use the `--max-turns` flag when launching each worker via `hive_write_worker_scr
 
 | Complexity | Suggested `--max-turns` |
 |------------|------------------------|
-| `[simple]` Haiku | 30 |
-| `[moderate]` Sonnet | 80 |
-| `[complex]` Opus | 150 |
-| Integration worker | 80–150 (based on batch complexity) |
+| `[simple]` Haiku | 15 |
+| `[moderate]` Sonnet | 30 |
+| `[complex]` Opus | 60 |
+| Integration worker | 30–60 (based on batch complexity) |
 
 These caps prevent infinite loops and runaway workers. If a worker exhausts its turns, it stops — the orchestrator treats this as `HIVE_TASK_ERROR` and applies the normal retry/escalation logic.
 
@@ -188,7 +188,7 @@ During a run, the orchestrator should flag these conditions:
 ## Key Principles
 
 - **Estimate before dispatch.** Never start a run without knowing the expected cost.
-- **Turn limit every worker.** Use `--max-turns` on every `claude` invocation (Haiku=30, Sonnet=80, Opus=150). No unbounded workers. Never use `--max-budget-usd` — incompatível com Claude Max.
+- **Turn limit every worker.** Use `--max-turns` on every `claude` invocation (Haiku=15, Sonnet=30, Opus=60). No unbounded workers. Never use `--max-budget-usd` — incompatível com Claude Max.
 - **Cheapest model that works.** Every Opus task should have a justification. Default to Sonnet for ambiguous cases.
 - **Track escalation cost separately.** Escalations are hidden costs — make them visible in the report.
 - **Cost report is mandatory.** Every completed run gets a cost report in `.hive/runs/<run-id>/cost-report.md`.

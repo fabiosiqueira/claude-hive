@@ -54,7 +54,7 @@ done
 ```
 
 - `<model-id>`: `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-6`
-- Limites: Haiku=30, Sonnet=80, Opus=150 turns. Use `--max-turns`, nunca `--max-budget-usd`.
+- Limites: Haiku=15, Sonnet=30, Opus=60 turns. Use `--max-turns`, nunca `--max-budget-usd`.
 - `hive_write_worker_script` salva prompts em arquivos e envia apenas o path via `send-keys` — nunca passe prompts inline.
 
 ## Step 2: Monitorar com TaskCreate + TaskUpdate
@@ -154,6 +154,23 @@ REGRAS:
 2ª falha  → escalar: Haiku→Sonnet, Sonnet→Opus, Opus→BLOCKED
 BLOCKED   → halt batch; decidir: skip (sem dependentes), abortar run, ou pedir intervenção
 ```
+
+## Cleanup obrigatório
+
+**Sempre execute ao final do run — seja sucesso, erro, ou BLOCKED:**
+
+```bash
+source lib/tmux-manager.sh
+hive_cleanup_all
+```
+
+Isso mata todos os workers e fecha as sessões tmux do run. Sem isso, processos órfãos continuam consumindo tokens indefinidamente.
+
+**Quando executar:**
+- Após o último batch completar (sucesso)
+- Ao encontrar task BLOCKED que halts o run
+- Ao receber interrupção do usuário
+- Antes de encerrar a sessão do orchestrador por qualquer motivo
 
 ## Princípios
 

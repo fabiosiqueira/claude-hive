@@ -108,6 +108,16 @@ hive_kill_session() {
   tmux kill-session -t "$session_name" 2>/dev/null || true
 }
 
+# Kill all active Hive workers and tmux sessions.
+# Safe to call at any time — idempotent, ignores missing sessions/processes.
+hive_cleanup_all() {
+  pkill -f "dangerously-skip-permissions" 2>/dev/null || true
+  tmux list-sessions 2>/dev/null \
+    | grep "^hive-" \
+    | awk -F: '{print $1}' \
+    | xargs -I{} tmux kill-session -t {} 2>/dev/null || true
+}
+
 # Write a self-contained wrapper script for a worker.
 # Stores prompts as separate files and reads them at runtime — avoids the shell
 # quoting issues that occur when long prompts are sent inline via tmux send-keys.
@@ -117,7 +127,7 @@ hive_kill_session() {
 #       task_prompt (string), system_prompt (string, optional)
 # max_turns: limits worker turns to prevent infinite loops (works with all plans,
 #            including Claude Max subscription — unlike --max-budget-usd which
-#            requires API billing). Defaults: Haiku=30, Sonnet=80, Opus=150.
+#            requires API billing). Defaults: Haiku=15, Sonnet=30, Opus=60.
 # NOTE: signal_channel (7th arg) was removed in v1.1.0. Workers no longer use
 # tmux wait-for. Orchestrator monitors via file polling (hive_get_task_status).
 hive_write_worker_script() {

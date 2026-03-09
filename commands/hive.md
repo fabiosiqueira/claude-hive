@@ -22,7 +22,7 @@ Invoke the `hive:brainstorming` skill to refine requirements with the user.
 
 ## Phase 2: Plan
 
-Run `/hive-plan` using the Skill tool.
+Read `commands/hive-plan.md` and follow its instructions.
 
 This creates a model-tagged plan with tasks, batches, dependencies, and acceptance criteria.
 
@@ -32,7 +32,7 @@ This creates a model-tagged plan with tasks, batches, dependencies, and acceptan
 
 Ask the user: "Does this project have a visual interface? If yes, I will generate the design system."
 
-If yes, run `/design-system` using the Skill tool.
+If yes, read `commands/design-system.md` and follow its instructions.
 
 **Gate:** `docs/design-spec.md` created with tokens, components, and layouts.
 
@@ -40,7 +40,7 @@ If no UI, skip to Phase 4.
 
 ## Phase 4: Execute
 
-Run `/hive-dispatch` using the Skill tool.
+Read `commands/hive-dispatch.md` and follow its instructions.
 
 This dispatches parallel workers in tmux sessions with git worktrees, monitors progress, handles failures, merges results, and runs tests after each batch.
 
@@ -48,7 +48,7 @@ This dispatches parallel workers in tmux sessions with git worktrees, monitors p
 
 ## Phase 5: Validate UX (if project has UI)
 
-Run `/validate-ux` using the Skill tool.
+Read `commands/validate-ux.md` and follow its instructions.
 
 **Gate:** All interactions tested -- navigation, clicks, forms, responsiveness, basic accessibility.
 
@@ -56,13 +56,13 @@ If no UI, skip to Phase 6.
 
 ## Phase 6: Security Review
 
-Run `/security-review` using the Skill tool.
+Read `commands/security-review.md` and follow its instructions.
 
 **Gate:** Zero CRITICAL or HIGH issues. MEDIUM issues documented for later fix.
 
 ## Phase 7: Ship
 
-Run `/ship` using the Skill tool.
+Read `commands/ship.md` and follow its instructions.
 
 **Gate:** Version bumped, CHANGELOG updated, README updated, code pushed, PR created (if applicable).
 

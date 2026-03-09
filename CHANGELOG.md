@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.1.4] - 2026-03-09
+
+### Fixed
+- **`commands/hive.md`**: fases 2–7 usavam `Skill tool` para invocar slash commands — corrigido para `Read commands/xxx.md and follow its instructions` (Skill tool só funciona com skills registradas em `skills/`, não com commands)
+- **`commands/hive-plan.md`**: Step 6 referenciava `/hive-dispatch` de forma ambígua — corrigido para instrução explícita de ler o arquivo de comando
+
+### Added
+- **`commands/hive-cleanup.md`**: novo comando `/hive:hive-cleanup` — mata todos os workers `--dangerously-skip-permissions` e sessões tmux Hive órfãs
+- **`lib/tmux-manager.sh`**: `hive_cleanup_all()` — função de cleanup idempotente usada pelo orchestrator ao encerrar
+- **`skills/dispatching-workers/SKILL.md`**: seção "Cleanup obrigatório" — `hive_cleanup_all` deve ser chamada ao final de todo run (sucesso, erro e BLOCKED)
+- **`skills/using-hive/SKILL.md`**: `/hive-cleanup` adicionado à tabela de comandos
+
+### Changed
+- **`--max-turns` reduzidos** para evitar workers órfãos com consumo excessivo: Haiku 30→15, Sonnet 80→30, Opus 150→60
+- Novos limites refletidos em `lib/tmux-manager.sh`, `skills/dispatching-workers/SKILL.md`, e `skills/cost-tracking/SKILL.md`
+
+## [1.1.3] - 2026-03-09
+
+### Added
+- **`commands/hive-debug.md`**: novo comando `/hive:hive-debug` — pipeline de debug com STAR reasoning, diagnóstico de causa raiz, plano de fix com aprovação do usuário, e execução via TDD ou workers
+- **`skills/debug/SKILL.md`**: skill `hive:debug` invocada pelo comando hive-debug
+
 ## [1.1.2] - 2026-03-08
 
 ### Fixed
