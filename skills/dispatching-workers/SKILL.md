@@ -84,18 +84,24 @@ Where:
 
 `hive_write_worker_script` writes the prompts to `task-N.task-prompt.txt` / `task-N.system-prompt.txt` alongside the script, and generates a wrapper that reads them at runtime. Only `bash /path/to/task-N.sh` is sent via `send-keys` — no metacharacters.
 
-### Step 5: Monitor com TodoWrite
+### Step 5: Monitor com TaskCreate + TaskUpdate
 
 Após lançar todos os workers do batch:
 
-**1. Crie o checklist inicial via TodoWrite** com todos os tasks como `in_progress`:
+**1. Crie o checklist inicial via `TaskCreate`** — um item por task, todos ficam `pending` ao criar:
 
 ```
-TodoWrite items:
-- id: "task-1", content: "Task 1 · [Sonnet] Implement auth service", status: "in_progress"
-- id: "task-2", content: "Task 2 · [Haiku] Write schema migration", status: "in_progress"
-- id: "task-3", content: "Task 3 · [Opus] Design caching strategy", status: "in_progress"
+Para cada task N no batch:
+  TaskCreate(
+    subject:    "Task N · [Model] description",
+    activeForm: "Running task N"
+  )
+  → guarda o taskId retornado em TASK_IDS[N]
+
+  TaskUpdate(taskId: TASK_IDS[N], status: "in_progress")
 ```
+
+O checklist aparece imediatamente no footer do Claude Code com spinners ativos.
 
 **2. Loop de polling até todos os tasks terem status terminal:**
 
@@ -105,11 +111,11 @@ Para cada iteração:
      - STATUS = Bash: hive_get_task_status .hive/runs/$RUN_ID/tasks/task-N.result.md
      - Se "running": PROGRESS = Bash: hive_get_task_progress .hive/runs/$RUN_ID N
 
-  b. Chame TodoWrite com status atualizado:
-     - "complete"      → status: "completed"
-     - "error"         → status: "completed", content: "Task N · [model] desc — FAILED"
-     - "context_heavy" → status: "completed", content: "Task N · [model] desc — CONTEXT_OVERLOAD"
-     - "running"       → status: "in_progress", content: "Task N · [model] desc — $PROGRESS"
+  b. Chame TaskUpdate para tasks que mudaram de estado:
+     - "complete"      → TaskUpdate(taskId, status:"completed", subject:"Task N · [model] desc — DONE")
+     - "error"         → TaskUpdate(taskId, status:"completed", subject:"Task N · [model] desc — FAILED")
+     - "context_heavy" → TaskUpdate(taskId, status:"completed", subject:"Task N · [model] desc — CONTEXT_OVERLOAD")
+     - "running"       → TaskUpdate(taskId, activeForm: "$PROGRESS")
 
   c. Se todos os tasks têm status terminal (complete/error/context_heavy) → sair do loop
 

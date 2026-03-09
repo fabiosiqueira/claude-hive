@@ -43,25 +43,21 @@ For each batch in the plan, sequentially:
 
 ### 4c. Monitor Progress
 
-After launching all workers, monitor via TodoWrite + file polling — no `tmux wait-for`, no race conditions:
+After launching all workers, monitor via TaskCreate/TaskUpdate + file polling — no `tmux wait-for`, no race conditions:
 
-```bash
-source lib/tmux-manager.sh
+```
+# 1. Para cada task N: TaskCreate(subject, activeForm) → TaskUpdate(in_progress)
+#    Checklist aparece imediatamente no footer do Claude Code
 
-# 1. Create initial TodoWrite checklist (all tasks in_progress)
-# Call TodoWrite with items like:
-#   { id: "task-N", content: "Task N · [Model] description", status: "in_progress" }
+# 2. Loop de polling (sleep 10 entre iterações):
+#    STATUS = Bash: hive_get_task_status .hive/runs/$RUN_ID/tasks/task-N.result.md
+#    complete      → TaskUpdate(completed, subject: "Task N · desc — DONE")
+#    error         → TaskUpdate(completed, subject: "Task N · desc — FAILED")
+#    context_heavy → TaskUpdate(completed, subject: "Task N · desc — CONTEXT_OVERLOAD")
+#    running       → TaskUpdate(activeForm: hive_get_task_progress ...)
+#    Todos terminais → sair do loop
 
-# 2. Poll until all tasks reach terminal status
-# Loop:
-#   For each task N:
-#     STATUS=$(hive_get_task_status ".hive/runs/$RUN_ID/tasks/task-N.result.md")
-#     If "running": PROGRESS=$(hive_get_task_progress ".hive/runs/$RUN_ID" "$N")
-#   Update TodoWrite items with current status
-#   If all tasks terminal → break
-#   sleep 10
-
-# See skill dispatching-workers Step 5 for the full TodoWrite loop pattern.
+# Ver skill dispatching-workers Step 5 para o padrão completo.
 ```
 
 Update `status.json` as tasks complete.
