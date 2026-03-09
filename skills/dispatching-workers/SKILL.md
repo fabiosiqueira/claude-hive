@@ -122,7 +122,31 @@ Para cada iteração:
   d. Bash: sleep 10
 ```
 
-**3. Todos os tasks concluídos → avançar para merge**
+**3. Ao sair do loop — imprimir relatório de batch**
+
+Tasks `completed` somem do footer automaticamente (comportamento do Claude Code). Por isso o orchestrator **deve** emitir um relatório inline imediatamente após o loop:
+
+```
+## Batch N — resultado
+
+| Task | Modelo | Status | Último progresso |
+|------|--------|--------|-----------------|
+| Task 1 · Schema migration | claude-haiku-4-5 | ✓ DONE | Committing |
+| Task 2 · Auth service     | claude-sonnet-4-6 | ✓ DONE | All tests passing |
+| Task 3 · Caching layer    | claude-opus-4-6  | ✓ DONE | Performance validated |
+| Task 4 · Webhook setup    | claude-haiku-4-5 | ✗ FAILED | External API unreachable |
+| Task 5 · Module integration | claude-sonnet-4-6 | ⚠ CONTEXT_OVERLOAD | Reading module D |
+
+Tasks com falha: 1 (Task 4) — requer retry ou escalação
+Tasks com context overload: 1 (Task 5) — requer split
+```
+
+Para montar o relatório, leia os dados das fontes já disponíveis:
+- Status: `hive_get_task_status .hive/runs/$RUN_ID/tasks/task-N.result.md`
+- Último progresso: `hive_get_task_progress .hive/runs/$RUN_ID N`
+- Modelo: campo `model` do `task-N.assigned.json`
+
+**4. Avançar para merge**
 
 Este padrão elimina `tmux wait-for` e resolve o race condition: o arquivo de resultado persiste no filesystem independentemente de quando o orchestrator verifica.
 

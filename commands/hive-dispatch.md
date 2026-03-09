@@ -60,6 +60,15 @@ After launching all workers, monitor via TaskCreate/TaskUpdate + file polling �
 # Ver skill dispatching-workers Step 5 para o padrão completo.
 ```
 
+Ao sair do loop, imprimir relatório de batch em markdown:
+
+```
+| Task | Modelo | Status | Último progresso |
+|------|--------|--------|-----------------|
+| Task N · desc | claude-X | ✓ DONE / ✗ FAILED / ⚠ CONTEXT_OVERLOAD | ... |
+```
+
+Tasks `completed` somem do footer — o relatório é a fonte de verdade do resultado.
 Update `status.json` as tasks complete.
 
 ### 4d. Handle Failures
