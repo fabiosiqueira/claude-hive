@@ -276,6 +276,60 @@ assert_dir_exists "run dir still exists after re-init" "$RUN_DIR"
 
 echo ""
 
+# ---------- hive_get_task_status ----------
+echo "--- hive_get_task_status ---"
+
+# Status: running (file does not exist)
+status=$(hive_get_task_status "$RUN_DIR/tasks/task-99.result.md")
+assert_eq "missing result file returns running" "running" "$status"
+
+# Status: complete
+echo "HIVE_TASK_COMPLETE" > "$RUN_DIR/tasks/task-gs-1.result.md"
+status=$(hive_get_task_status "$RUN_DIR/tasks/task-gs-1.result.md")
+assert_eq "HIVE_TASK_COMPLETE marker returns complete" "complete" "$status"
+
+# Status: complete via integration marker
+echo "HIVE_INTEGRATION_COMPLETE" > "$RUN_DIR/tasks/task-gs-2.result.md"
+status=$(hive_get_task_status "$RUN_DIR/tasks/task-gs-2.result.md")
+assert_eq "HIVE_INTEGRATION_COMPLETE marker returns complete" "complete" "$status"
+
+# Status: error
+echo "HIVE_TASK_ERROR" > "$RUN_DIR/tasks/task-gs-3.result.md"
+status=$(hive_get_task_status "$RUN_DIR/tasks/task-gs-3.result.md")
+assert_eq "HIVE_TASK_ERROR marker returns error" "error" "$status"
+
+# Status: context_heavy
+echo "HIVE_TASK_CONTEXT_HEAVY" > "$RUN_DIR/tasks/task-gs-4.result.md"
+status=$(hive_get_task_status "$RUN_DIR/tasks/task-gs-4.result.md")
+assert_eq "HIVE_TASK_CONTEXT_HEAVY marker returns context_heavy" "context_heavy" "$status"
+
+# Status: running (file exists but no marker yet)
+echo "Still working..." > "$RUN_DIR/tasks/task-gs-5.result.md"
+status=$(hive_get_task_status "$RUN_DIR/tasks/task-gs-5.result.md")
+assert_eq "result file without marker returns running" "running" "$status"
+
+echo ""
+
+# ---------- hive_get_task_progress ----------
+echo "--- hive_get_task_progress ---"
+
+# No progress file -> empty
+progress=$(hive_get_task_progress "$RUN_DIR" "99")
+assert_eq "missing progress file returns empty" "" "$progress"
+
+# Progress file with entries -> last line without timestamp
+printf '[10:00:01] Starting\n[10:00:05] Writing tests\n[10:00:30] Done\n' \
+  > "$RUN_DIR/tasks/task-gp-1.progress.txt"
+progress=$(hive_get_task_progress "$RUN_DIR" "gp-1")
+assert_eq "returns last line without timestamp" "Done" "$progress"
+
+# Single entry
+printf '[09:59:01] Initializing\n' > "$RUN_DIR/tasks/task-gp-2.progress.txt"
+progress=$(hive_get_task_progress "$RUN_DIR" "gp-2")
+assert_eq "single entry without timestamp" "Initializing" "$progress"
+
+echo ""
+
 echo "=== Results: $PASS passed, $FAIL failed ==="
 
 if [[ $FAIL -gt 0 ]]; then

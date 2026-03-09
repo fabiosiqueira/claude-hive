@@ -16,15 +16,13 @@ hive_init_run() {
 
   # Only create status.json and log.md if they don't already exist (idempotent)
   if [[ ! -f "$run_dir/status.json" ]]; then
-    local timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S")
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S")
     printf '{"run_id": "%s", "status": "planning", "updated_at": "%s"}\n' \
       "$run_id" "$timestamp" > "$run_dir/status.json"
   fi
 
   if [[ ! -f "$run_dir/log.md" ]]; then
-    local timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S")
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S")
     printf '# Hive Run Log\n\n- [%s] Run initialized: %s\n' \
       "$timestamp" "$run_id" > "$run_dir/log.md"
   fi
@@ -43,6 +41,47 @@ hive_assign_task() {
   local task_file="$run_dir/tasks/task-${task_number}.assigned.json"
   printf '{"task_number": %s, "model": "%s", "status": "assigned", "worktree_path": "%s"}\n' \
     "$task_number" "$model" "$worktree_path" > "$task_file"
+}
+
+# Check task status from a result file path.
+# Args: result_file (path to task-N.result.md)
+# Output: "complete", "error", "context_heavy", or "running"
+hive_get_task_status() {
+  local result_file="$1"
+
+  if [[ ! -f "$result_file" ]]; then
+    echo "running"
+    return 0
+  fi
+
+  local content
+  content=$(cat "$result_file")
+
+  if [[ "$content" == *"HIVE_TASK_COMPLETE"* ]] || [[ "$content" == *"HIVE_INTEGRATION_COMPLETE"* ]]; then
+    echo "complete"
+  elif [[ "$content" == *"HIVE_TASK_ERROR"* ]] || [[ "$content" == *"HIVE_INTEGRATION_ERROR"* ]]; then
+    echo "error"
+  elif [[ "$content" == *"HIVE_TASK_CONTEXT_HEAVY"* ]]; then
+    echo "context_heavy"
+  else
+    echo "running"
+  fi
+}
+
+# Get last progress line for a task, without the timestamp prefix.
+# Args: run_dir, task_number
+# Output: last progress message, or empty string if no progress file
+hive_get_task_progress() {
+  local run_dir="$1"
+  local task_number="$2"
+  local progress_file="$run_dir/tasks/task-${task_number}.progress.txt"
+
+  if [[ ! -f "$progress_file" ]]; then
+    echo ""
+    return 0
+  fi
+
+  tail -1 "$progress_file" | sed 's/^\[[0-9:]*\] //'
 }
 
 # Check if a task result file exists and contains a completion marker.
@@ -96,10 +135,10 @@ hive_get_tasks_by_status() {
     local task_number="${basename#task-}"
     task_number="${task_number%.assigned.json}"
 
-    local status
-    status=$(hive_check_task_status "$run_dir" "$task_number")
+    local task_status
+    task_status=$(hive_check_task_status "$run_dir" "$task_number")
 
-    if [[ "$status" == "$target_status" ]]; then
+    if [[ "$task_status" == "$target_status" ]]; then
       matching+=("$task_number")
     fi
   done
@@ -122,9 +161,9 @@ hive_all_tasks_complete() {
 
   local task_number
   for task_number in $task_numbers; do
-    local status
-    status=$(hive_check_task_status "$run_dir" "$task_number")
-    if [[ "$status" != "complete" ]]; then
+    local task_status
+    task_status=$(hive_check_task_status "$run_dir" "$task_number")
+    if [[ "$task_status" != "complete" ]]; then
       echo "false"
       return 0
     fi
@@ -188,8 +227,8 @@ hive_get_run_status() {
     local content
     content=$(cat "$run_dir/status.json")
     local after_key="${content#*\"status\": \"}"
-    local status="${after_key%%\"*}"
-    echo "$status"
+    local run_status="${after_key%%\"*}"
+    echo "$run_status"
   fi
 }
 

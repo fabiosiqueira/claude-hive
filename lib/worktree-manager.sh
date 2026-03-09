@@ -15,7 +15,18 @@ hive_worktree_create() {
   local worktree_path="$repo_path/$HIVE_WORKTREE_DIR/task-$task_number"
 
   mkdir -p "$(dirname "$worktree_path")"
-  git -C "$repo_path" worktree add "$worktree_path" -b "$branch_name" >/dev/null 2>&1
+
+  if [[ -d "$worktree_path" ]]; then
+    echo "ERROR: worktree path already exists: $worktree_path" >&2
+    return 1
+  fi
+
+  local err
+  err=$(git -C "$repo_path" worktree add "$worktree_path" -b "$branch_name" 2>&1)
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR: git worktree add failed: $err" >&2
+    return 1
+  fi
 
   echo "$worktree_path"
 }

@@ -159,22 +159,23 @@ else
 fi
 
 echo ""
-echo "--- hive_build_claude_command with signal ---"
+echo "--- hive_build_claude_command signal_channel ignorado (v1.1.0) ---"
+# signal_channel (5th arg) is ignored in v1.1.0 — tmux wait-for removed
 cmd_with_signal=$(hive_build_claude_command "sonnet" "" "" "do stuff" "hive-abc-task-1-done")
-if echo "$cmd_with_signal" | grep -q "tmux wait-for -S 'hive-abc-task-1-done'"; then
-  echo "  PASS: command includes wait-for signal"
-  ((PASS++))
-else
-  echo "  FAIL: command missing wait-for signal"
+if echo "$cmd_with_signal" | grep -q "wait-for"; then
+  echo "  FAIL: signal_channel deveria ser ignorado em v1.1.0"
   ((FAIL++))
+else
+  echo "  PASS: signal_channel ignorado (sem wait-for gerado)"
+  ((PASS++))
 fi
 
 cmd_no_signal=$(hive_build_claude_command "haiku" "" "" "do stuff" "")
 if echo "$cmd_no_signal" | grep -q "wait-for"; then
-  echo "  FAIL: command should not include wait-for without signal"
+  echo "  FAIL: comando sem signal não deve ter wait-for"
   ((FAIL++))
 else
-  echo "  PASS: command without signal has no wait-for"
+  echo "  PASS: sem signal_channel, sem wait-for"
   ((PASS++))
 fi
 

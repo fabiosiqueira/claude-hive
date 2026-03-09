@@ -239,25 +239,19 @@ hive_get_task_progress() {
   echo "$last_line" | sed 's/^\[[0-9:]*\] //'
 }
 
-# Build the claude command for a worker
-# Args: model, system_prompt, max_turns, task_prompt, signal_channel (optional)
-# Returns: the full command string
-# If signal_channel is provided, appends `; tmux wait-for -S <channel>` so the
-# orchestrator can block on `tmux wait-for <channel>` instead of polling.
-# DEPRECATED: Use hive_write_worker_script + hive_launch_worker_script instead.
-# This function builds a command string that is unsafe to send via tmux send-keys
-# when prompts contain shell metacharacters ($, `, ", \).
+# DEPRECATED (v1.1.0): Use hive_write_worker_script + hive_launch_worker_script instead.
+# signal_channel (5th arg) is IGNORED — tmux wait-for was removed in v1.1.0.
+# This function builds an unsafe command string (metacharacter issues with tmux send-keys).
 hive_build_claude_command() {
   local model="$1"
   local system_prompt="$2"
   local max_turns="${3:-}"
   local task_prompt="${4:-}"
-  local signal_channel="${5:-}"
+  # signal_channel (5th arg) intentionally ignored — tmux wait-for removed in v1.1.0
 
   local cmd="claude --model '$model' --dangerously-skip-permissions"
 
   if [[ -n "$system_prompt" ]]; then
-    # Save prompt to temp file — avoids quoting issues with special chars
     local prompt_file
     prompt_file=$(mktemp "${TMPDIR:-/tmp}/hive-system-prompt.XXXXXX")
     printf '%s' "$system_prompt" > "$prompt_file"
@@ -269,15 +263,10 @@ hive_build_claude_command() {
   fi
 
   if [[ -n "$task_prompt" ]]; then
-    # Save prompt to temp file — avoids quoting issues with special chars
     local task_file
     task_file=$(mktemp "${TMPDIR:-/tmp}/hive-task-prompt.XXXXXX")
     printf '%s' "$task_prompt" > "$task_file"
     cmd="$cmd -p \"\$(cat '$task_file')\""
-  fi
-
-  if [[ -n "$signal_channel" ]]; then
-    cmd="$cmd; tmux wait-for -S '$signal_channel'"
   fi
 
   echo "$cmd"
@@ -288,9 +277,10 @@ hive_build_claude_command() {
 # orchestrator calls wait-for, the signal is lost and the orchestrator hangs.
 # hive_wait_for_result uses file polling which is immune to this race.
 hive_wait_for_worker() {
-  local signal_channel="$1"
-
-  tmux wait-for "$signal_channel"
+  # DEPRECATED (v1.1.0): tmux wait-for removed — race condition risk.
+  # Use hive_wait_for_result (file polling) instead.
+  echo "ERROR: hive_wait_for_worker is deprecated. Use hive_wait_for_result instead." >&2
+  return 1
 }
 
 # DEPRECATED (v1.1.0): signal_channel was removed from hive_write_worker_script.
@@ -349,10 +339,8 @@ hive_print_status() {
 # DEPRECATED (v1.1.0): Use hive_get_task_status polling loop in the orchestrator instead.
 # See skills/dispatching-workers/SKILL.md Step 5 for the TodoWrite + polling pattern.
 hive_wait_for_all_workers() {
-  local channels="$1"
-  local channel
-
-  for channel in $channels; do
-    tmux wait-for "$channel"
-  done
+  # DEPRECATED (v1.1.0): tmux wait-for removed — race condition risk.
+  # Use the TaskCreate/TaskUpdate polling loop in the orchestrator instead.
+  echo "ERROR: hive_wait_for_all_workers is deprecated. Use file polling + TaskCreate/TaskUpdate." >&2
+  return 1
 }

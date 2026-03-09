@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.2] - 2026-03-08
+
+### Fixed
+- **`lib/result-collector.sh`**: implementadas `hive_get_task_status` e `hive_get_task_progress` — documentadas no CHANGELOG 1.1.0 mas nunca implementadas; agora disponíveis e cobertas por testes
+- **`skills/dispatching-workers/SKILL.md`**: reescrito de forma enxuta — modo silencioso por padrão (só exibe texto em erro/warning/relatório de batch); removidas seções redundantes; gotcha #4 adicionado (`hive_worktree_create` requer 3 args)
+
+### Added
+- `hive_get_task_status result_file` → `complete` | `error` | `context_heavy` | `running` (lê path do result file, não run_dir+task_number)
+- `hive_get_task_progress run_dir task_number` → última linha do progress file sem timestamp `[HH:MM:SS]`
+- 8 novos testes em `tests/test-result-collector.sh` cobrindo as duas novas funções (52 total)
+
+## [1.1.1] - 2026-03-08
+
+### Added
+- Relatório inline de batch após loop de monitoramento — impresso pelo orchestrator logo após o loop de polling, antes do merge
+
+### Fixed
+- Substituído `TodoWrite` por `TaskCreate`/`TaskUpdate` no skill e no command `/hive-dispatch`
+
 ## [1.1.0] - 2026-03-08
 
 ### Changed
