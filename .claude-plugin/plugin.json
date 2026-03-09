@@ -5,8 +5,8 @@
   "author": {
     "name": "Fabio Siqueira"
   },
-  "homepage": "https://github.com/fabiosiqueira/hive",
-  "repository": "https://github.com/fabiosiqueira/hive",
+  "homepage": "https://github.com/fabiosiqueira/claude-hive",
+  "repository": "https://github.com/fabiosiqueira/claude-hive",
   "license": "MIT",
   "keywords": [
     "orchestration",
