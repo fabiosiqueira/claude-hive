@@ -1,5 +1,5 @@
 ---
-name: hive-debug
+name: debug
 description: "Diagnose a bug from error input, propose a fix plan, get approval, and execute"
 ---
 

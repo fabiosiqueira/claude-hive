@@ -9,7 +9,8 @@
       "Bash(bash /Users/fabiosiqueira/dev/projetos/voltagent-circle/tests/test-plan-parser.sh)",
       "Bash(bash tests/test-tmux-manager.sh)",
       "Bash(wc -l /Users/fabiosiqueira/dev/projetos/voltagent-circle/agents/*.md)",
-      "Bash(bash hooks/session-start)"
+      "Bash(bash hooks/session-start)",
+      "Read(//Users/fabiosiqueira/dev/projetos/voltagent-circle/**)"
     ]
   }
 }

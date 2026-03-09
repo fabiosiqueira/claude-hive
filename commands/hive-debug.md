@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # /hive-debug -- Debug and Fix
 
-You are running the Hive debug pipeline. Invoke the `hive:hive-debug` skill to begin.
+You are running the Hive debug pipeline. Invoke the `hive:debug` skill to begin.
 
 The skill will:
 1. Collect the error input (text, stack trace, optional image path)
