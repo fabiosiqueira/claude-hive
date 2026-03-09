@@ -174,3 +174,7 @@ BLOCKED   → halt batch; decidir: skip (sem dependentes), abortar run, ou pedir
 **4. `hive_worktree_create` recebe 3 args** — `repo_path, run_id, task_number`. Passar 2 cria worktree em path errado.
 
 **5. `signal_channel` removido (v1.1.0)** — `hive_write_worker_script` aceita 6 args (sem 7º). Monitoring via `hive_get_task_status` + TaskUpdate, não `tmux wait-for`.
+
+**6. Ponto (`.`) proibido em nomes de window tmux** — tmux usa `.` como separador de pane (`session:window.pane`). Se o plano usa notação `Task 1.1`, `Task 1.2`, converta para `task-1-1`, `task-1-2` ao criar windows e worktrees. Nunca use `task-1.1` como nome.
+
+**7. Não use loop bash em background para monitoramento** — o padrão correto é TaskCreate/TaskUpdate + `sleep 10` no turno do orchestrator. Loop `while true` em background via Bash `run_in_background` é workaround incorreto: não atualiza os labels do task manager e não respeita o fluxo da skill.
